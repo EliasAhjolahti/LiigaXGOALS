@@ -91,7 +91,7 @@ th.sorted{color:#fff}
 tr.click{cursor:pointer}
 .lno{font:700 22px 'Barlow Condensed';width:26px}
 .tablewrap{scrollbar-color:#2a323d transparent}
-.lsingle{max-width:460px}
+.lsingle{max-width:460px;margin:0 auto}
 .lrink{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px 12px}
 .lrink .hd{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .lrink .hd .lt{font:700 20px 'Barlow Condensed';letter-spacing:.04em;text-transform:uppercase;color:var(--c)}
@@ -406,8 +406,6 @@ function render(d, stats, shots) {
       <div id="lines"></div>
     </div>
 
-    <div class="panel"><h2><span ${tip('gk')}>Maalivahdit ⓘ</span></h2>${goalies(d, stats, shots, hNum, aNum, byId)}</div>
-
     <div class="panel">
       <h2>Pelaajatilastot</h2>
       <div class="tabs" id="ptabs">
@@ -415,7 +413,9 @@ function render(d, stats, shots) {
         <button data-t="away" style="--c:var(--away)" class="${state.tab === 'away' ? 'on' : ''}">${A.teamName}</button>
       </div>
       <div class="tablewrap" id="ptable"></div>
-    </div>`;
+    </div>
+
+    <div class="panel"><h2><span ${tip('gk')}>Maalivahdit ⓘ</span></h2>${goalies(d, stats, shots, hNum, aNum, byId)}</div>`;
 
   const drawTable = () => $('#ptable').innerHTML = playerTable(state.tab === 'home' ? home : away, state.tab === 'home' ? 'var(--home)' : 'var(--away)');
   drawTable();
