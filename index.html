@@ -90,22 +90,13 @@ th.sorted{color:#fff}
 .lchips button.on{border-color:var(--c);color:var(--c);background:#ffffff0d}
 tr.click{cursor:pointer}
 .lno{font:700 22px 'Barlow Condensed';width:26px}
-.avs{display:inline-flex;margin-right:10px}
-.av.sm{width:28px;height:28px;margin-right:-8px;border:2px solid var(--panel)}
-.lnames{font-size:13px;margin-left:8px;white-space:normal;line-height:1.3}
-.ltable td.left{white-space:normal;min-width:260px}
 .tablewrap{scrollbar-color:#2a323d transparent}
 .ppline{display:flex;flex-wrap:wrap;gap:6px 14px}
 .ppp{display:inline-flex;align-items:center;font-size:12px;line-height:1.25;white-space:nowrap}
 .ppp .av{width:30px;height:30px;margin-right:6px}
 tr.selrow{background:#ffffff0f}
-.lchips .vswitch{margin-left:auto;display:flex}
-.lchips .vswitch button{border-radius:0}
-.lchips .vswitch button:first-child{border-radius:8px 0 0 8px}
-.lchips .vswitch button:last-child{border-radius:0 8px 8px 0;margin-left:-1px}
-.lrinks{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:14px}
-.lrink{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px 12px;cursor:pointer;transition:border-color .15s}
-.lrink:hover{border-color:var(--c)}
+.lsingle{max-width:620px}
+.lrink{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px 12px}
 .lrink .hd{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .lrink .hd .lt{font:700 20px 'Barlow Condensed';letter-spacing:.04em;text-transform:uppercase;color:var(--c)}
 .lrink .hd .tx{text-align:right;font-size:12px;color:var(--muted)}
@@ -118,25 +109,6 @@ tr.selrow{background:#ffffff0f}
 .rp .nm span{color:var(--muted);font-weight:400}
 .rp .xv{font:700 15px 'Barlow Condensed';color:var(--c)}
 .lrink .ft{font-size:12px;color:var(--muted);margin-top:4px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
-.cover{margin-top:16px;background:var(--panel2);border-radius:10px;padding:14px 16px;font-size:13px}
-.cover .ctitle{font:600 16px 'Barlow Condensed';letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px}
-.cover p{margin:6px 0 10px;max-width:900px}
-.cbar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--line)}
-.clegend{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:8px;font-size:12px}
-.clegend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:middle}
-.split{display:inline-flex;width:60px;height:6px;border-radius:3px;overflow:hidden}
-.linegrid{display:grid;grid-template-columns:1.1fr 1fr;gap:18px}
-@media (max-width:860px){.linegrid{grid-template-columns:1fr}}
-.formation{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px}
-.formation.d{grid-template-columns:repeat(2,minmax(0,1fr));padding:0 16%}
-.fcard{background:var(--panel2);border-radius:10px;overflow:hidden;border-top:3px solid var(--c)}
-.fcard .ph{height:120px;position:relative;background:linear-gradient(180deg,#2a323d,#1c232c);display:flex;justify-content:center;align-items:flex-end}
-.fcard .ph img{height:100%;object-fit:cover}
-.fcard .jn{position:absolute;top:6px;left:8px;font:700 20px 'Barlow Condensed';color:var(--c)}
-.fcard .slot{position:absolute;top:8px;right:8px;font:600 11px Inter;background:#0008;padding:1px 6px;border-radius:4px}
-.fcard .bd{padding:8px 10px;font-size:12px}
-.fcard .pn{font-size:13px;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.fcard .row{display:flex;justify-content:space-between;gap:6px}
 .tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
 .tile{background:var(--panel2);border-radius:10px;padding:10px 12px}
 .tile .tl{font:600 12px 'Barlow Condensed';letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
@@ -162,8 +134,7 @@ const fmt = (n, d = 2) => (n ?? 0).toFixed(d).replace('.', ',');
 const toi = s => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
 const POS = {GOALIE:'MV',CENTER:'KH',LEFT_WING:'VL',RIGHT_WING:'OL',LEFT_DEFENSEMAN:'VP',RIGHT_DEFENSEMAN:'OP',DEFENSEMAN:'P',SEVENTH_DEFENSEMAN:'P',STRIKER:'H',THIRTEENTH_STRIKER:'H'};
 
-let timer, state = {tab: 'home', sort: 'xg', dir: -1, lineTeam: 'home', line: 'all', lineView: 'table'};
-try { if (localStorage.getItem('lineView') === 'rink') state.lineView = 'rink'; } catch (e) {}
+let timer, state = {tab: 'home', sort: 'xg', dir: -1, lineTeam: 'home', line: 1};
 
 function seasonOf(d) { return d.getMonth() >= 6 ? d.getFullYear() + 1 : d.getFullYear(); }
 function localDate(d) { return d.toLocaleDateString('sv-SE'); }
@@ -258,7 +229,7 @@ async function load() {
     $('#app').insertAdjacentHTML('afterbegin', `<div class="panel">${gamePicker(day, id)}</div>`);
     scrollTo(0, y); // pidetään lukukohta päivityksessä
     document.querySelectorAll('.picker button').forEach(b => b.onclick = () => {
-      state.gameId = +b.dataset.g; state.tab = 'home'; state.lineTeam = 'home'; state.line = 'all';
+      state.gameId = +b.dataset.g; state.tab = 'home'; state.lineTeam = 'home'; state.line = 1;
       document.querySelectorAll('.picker button').forEach(x => x.classList.toggle('on', x === b));
       loading = false; load();
     });
@@ -462,7 +433,7 @@ function render(d, stats, shots) {
   };
   const drawLines = () => {
     const side = state.lineTeam, ls = lineData[side];
-    if (state.line !== 'all' && state.line !== 'pp' && !ls.some(l => l.n === state.line)) state.line = 'all';
+    if (state.line !== 'pp' && ls.length && !ls.some(l => l.n === state.line)) state.line = ls[0].n;
     const T = side === 'home' ? H : A;
     const ppInfo = {n: T.powerplayInstances, g: T.powerplayGoals};
     $('#lines').innerHTML = linesView(ls, side === 'home' ? 'var(--home)' : 'var(--away)', hNum, byId, ppInfo);
@@ -472,13 +443,11 @@ function render(d, stats, shots) {
     state.lineTeam = b.dataset.t; state.ppUnit = null; document.querySelectorAll('#ltabs button').forEach(x => x.classList.toggle('on', x === b)); drawLines();
   });
   $('#lines').onclick = e => {
-    const vw = e.target.closest('[data-view]');
-    if (vw) { state.lineView = vw.dataset.view; try { localStorage.setItem('lineView', state.lineView); } catch (err) {} drawLines(); return; }
     const u = e.target.closest('[data-ppu]');
     if (u) { const i = +u.dataset.ppu; state.ppUnit = state.ppUnit === i ? null : i; drawLines(); return; }
     const el = e.target.closest('[data-line]'); if (!el) return;
     const v = el.dataset.line;
-    state.line = v === 'all' || v === 'pp' ? v : +v; state.ppUnit = null; drawLines();
+    state.line = v === 'pp' ? v : +v; state.ppUnit = null; drawLines();
   };
   $('#ptable').onclick = e => {
     const th = e.target.closest('th'); if (!th) return;
@@ -633,16 +602,8 @@ function buildLines(rosterTeam, agg, shots, teamNum) {
       g: all.reduce((t, p) => t + p.g, 0), a: all.reduce((t, p) => t + p.a, 0),
       toi: fw.length ? fw.reduce((t, p) => t + p.toi, 0) / fw.length : 0,
       trio: together(fw.map(p => p.id)),
-      five: df.length === 2 && fw.length === 3 ? together([...fw, ...df].map(p => p.id)) : null,
     });
   }
-  // Kuinka suuri osa joukkueen xG:stä syntyi jonkin kokoonpanon kolmikon ollessa kentällä, ja mistä loput tulivat
-  const own = shots.filter(s => s.shootingTeamId === teamNum);
-  const trios = out.filter(l => l.fw.length === 3).map(l => l.fw.map(p => p.id));
-  const covered = s => trios.some(ids => ids.every(id => s.playerStartPositions?.some(q => q.playerId === id)));
-  const rest = own.filter(s => !covered(s));
-  const special = rest.filter(s => s.type === 'PowerplayShot' || s.type === 'ShorthandedShot');
-  out.cover = {total: xgSum(own), lines: xgSum(own) - xgSum(rest), special: xgSum(special), other: xgSum(rest) - xgSum(special)};
   out.pp = buildPP(agg, shots, teamNum);
   return out;
 }
@@ -692,33 +653,6 @@ function ppView(pp, col, hNum, byId, info) {
     ${rink(shown, hNum, byId)}`;
 }
 
-function coverNote(c, col) {
-  if (!c || !c.total) return '';
-  const pct = v => Math.round(v / c.total * 100);
-  const seg = (v, bg) => v > 0 ? `<div style="width:${v / c.total * 100}%;background:${bg}"></div>` : '';
-  return `<div class="cover">
-    <div class="ctitle">Miksi ketjujen luvut eivät summaudu joukkueen xG:hen?</div>
-    <p>Ketjut tulevat Liigan ilmoittamasta ottelun kokoonpanosta. Luvut <b>puolesta</b> ja <b>vastaan</b> lasketaan vain siltä ajalta,
-    kun kokoonpanon kolme hyökkääjää olivat kentällä samaan aikaan. Ylivoima- ja alivoimakentälliset kootaan yleensä eri ketjujen pelaajista,
-    ja valmentaja voi myös vaihtaa pelaajia ketjusta toiseen kesken ottelun. Näiden kokoonpanojen laukaukset eivät kuulu millekään ketjulle.</p>
-    <div class="cbar">${seg(c.lines, col)}${seg(c.special, '#8b97a5')}${seg(c.other, '#3a434e')}</div>
-    <div class="clegend">
-      <span><i style="background:${col}"></i>Kokoonpanon ketjut yhdessä: <b class="num">${fmt(c.lines)}</b> (${pct(c.lines)} %)</span>
-      <span><i style="background:#8b97a5"></i>Yli- ja alivoimalla muilla kokoonpanoilla: <b class="num">${fmt(c.special)}</b> (${pct(c.special)} %)</span>
-      <span><i style="background:#3a434e"></i>Tasakentällisin muilla yhdistelmillä: <b class="num">${fmt(c.other)}</b> (${pct(c.other)} %)</span>
-      <span>Joukkueen xG yhteensä: <b class="num">${fmt(c.total)}</b> <span class="muted">(laukauskartasta, voi poiketa virallisesta pyöristyksen vuoksi)</span></span>
-    </div>
-    <p class="muted"><b>Omat xG</b> taas on pelaajien omien laukausten summa riippumatta siitä, kenen kanssa he pelasivat, joten ketjujen omat xG:t summautuvat lähes koko joukkueen xG:hen.</p>
-  </div>`;
-}
-
-const pctOf = (f, a) => f + a > 0 ? f / (f + a) * 100 : null;
-function splitBar(f, a, col) {
-  const p = pctOf(f, a);
-  if (p == null) return '<span class="muted">–</span>';
-  return `<div class="split"><div style="width:${p}%;background:${col}"></div><div style="width:${100 - p}%;background:#56606c"></div></div><b class="num">${Math.round(p)} %</b>`;
-}
-
 // Yksinkertaistettu kenttänäkymä: ketjun pelaajat sijoitettuna puolikkaalle kentälle, hyökkäyssuunta oikealle
 const ICE_SVG = `<svg viewBox="0 0 115 100" preserveAspectRatio="none" aria-hidden="true" fill="none" stroke="#ffffff26" stroke-width=".6">
   <path d="M1 1H85A29 29 0 0 1 114 30V70A29 29 0 0 1 85 99H1Z" fill="#ffffff05"/>
@@ -757,67 +691,12 @@ function lineRink(l, col) {
 function linesView(lines, col, hNum, byId, ppInfo) {
   if (!lines.length) return '<div class="muted">Ketjutietoja ei ole saatavilla tälle ottelulle.</div>';
   const chips = `<div class="lchips">
-    <button data-line="all" class="${state.line === 'all' ? 'on' : ''}" style="--c:${col}">Kaikki ketjut</button>
     ${lines.map(l => `<button data-line="${l.n}" class="${state.line === l.n ? 'on' : ''}" style="--c:${col}">${l.n}. ketju</button>`).join('')}
-    <button data-line="pp" class="${state.line === 'pp' ? 'on' : ''}" style="--c:${col}">YV-kentälliset</button>
-    ${state.line === 'all' ? `<div class="vswitch">
-      <button data-view="table" class="${state.lineView !== 'rink' ? 'on' : ''}" style="--c:${col}">Taulukko</button>
-      <button data-view="rink" class="${state.lineView === 'rink' ? 'on' : ''}" style="--c:${col}">Kenttä</button></div>` : ''}</div>`;
+    <button data-line="pp" class="${state.line === 'pp' ? 'on' : ''}" style="--c:${col}">YV-kentälliset</button></div>`;
   if (state.line === 'pp') return chips + ppView(lines.pp, col, hNum, byId, ppInfo);
-  const av = p => `<img class="av sm" src="${p.pic || ''}" onerror="this.style.visibility='hidden'" alt="" title="${p.first} ${p.last}">`;
-  const names = l => [...l.fw, ...l.df].map(p => p.last).join(' – ');
-  const maxOwn = Math.max(.01, ...lines.map(l => l.own));
-
-  if (state.line === 'all' && state.lineView === 'rink') {
-    return chips + `<div class="lrinks">${lines.map(l => lineRink(l, col)).join('')}</div>
-      <div class="muted" style="font-size:12px;margin-top:8px">Pelaajan alla hänen omien laukaustensa xG, oikeassa yläkulmassa ketjun pelaajien yhteenlaskettu xG. Klikkaa ketjua nähdäksesi tarkemmat tiedot.</div>
-      ${coverNote(lines.cover, col)}`;
-  }
-
-  if (state.line === 'all') {
-    return chips + `<div class="tablewrap"><table class="ltable" style="--c:${col}"><thead><tr>
-      <th class="left">Ketju</th><th ${tip('lOwn')}>Omat xG</th><th ${tip('lXgf')}>xG puolesta</th><th ${tip('lXga')}>xG vastaan</th>
-      <th ${tip('lXgp')}>xG %</th><th ${tip('lCf')}>Lauk.yr. +/−</th><th ${tip('lGf')}>Maalit +/−</th><th ${tip('lPts')}>M + S</th><th ${tip('lToi')}>Peliaika</th></tr></thead><tbody>
-      ${lines.map(l => { const t = l.trio; return `<tr data-line="${l.n}" class="click">
-        <td class="left"><div class="pl"><b class="lno" style="color:${col}">${l.n}.</b><span class="avs">${[...l.fw, ...l.df].map(av).join('')}</span>
-          <span class="lnames">${names(l)}</span></div></td>
-        <td><div class="xgcell"><span class="b" style="width:${l.own / maxOwn * 50}px"></span><b class="num">${fmt(l.own)}</b></div></td>
-        <td class="num">${t ? fmt(t.xgf) : '–'}</td><td class="num">${t ? fmt(t.xga) : '–'}</td>
-        <td><div class="xgcell">${t ? splitBar(t.xgf, t.xga, col) : '–'}</div></td>
-        <td class="num">${t ? `${t.cf}–${t.ca}` : '–'}</td><td class="num">${t ? `${t.gf}–${t.ga}` : '–'}</td>
-        <td class="num">${l.g} + ${l.a}</td><td class="num">${toi(l.toi)}</td></tr>`; }).join('')}
-      </tbody></table></div>
-      <div class="muted" style="font-size:12px;margin-top:8px">Klikkaa ketjua nähdäksesi pelaajat ja ketjun laukauskartan. ”Puolesta/vastaan” = ketjun hyökkääjät kentällä yhdessä.</div>
-      ${coverNote(lines.cover, col)}`;
-  }
-
-  const l = lines.find(x => x.n === state.line), t = l.trio;
-  const card = (p, slot) => `<div class="fcard" style="--c:${col}">
-    <div class="ph">${p.pic ? `<img src="${p.pic}" alt="" loading="lazy" onerror="this.remove()">` : ''}<span class="jn">#${p.jersey}</span><span class="slot">${slot}</span></div>
-    <div class="bd"><div class="pn">${p.first} <b>${p.last}</b></div>
-    <div class="row"><span ${tip('pxg')}>xG <b class="num">${fmt(p.xg)}</b></span><span>${p.g} M · ${p.a} S</span></div>
-    <div class="row muted"><span>${p.att || 0} lauk.yr.</span><span>${toi(p.toi)}</span><span>${p.pm > 0 ? '+' : ''}${p.pm}</span></div></div></div>`;
-  const SL = {LEFT_WING: 'VL', CENTER: 'KH', RIGHT_WING: 'OL', LEFT_DEFENSEMAN: 'VP', RIGHT_DEFENSEMAN: 'OP'};
-  const slot = p => SL[p.role] || p.pos || '';
-  const tile = (k, label, val, sub = '') => `<div class="tile" ${tip(k)}><div class="tl">${label}</div><div class="tv num">${val}</div>${sub ? `<div class="ts">${sub}</div>` : ''}</div>`;
-  return chips + `<div class="linegrid">
-    <div>
-      <div class="formation">${l.fw.map(p => card(p, slot(p))).join('')}</div>
-      ${l.df.length ? `<div class="formation d">${l.df.map(p => card(p, slot(p))).join('')}</div>` : ''}
-      ${l.ex.length ? `<div class="muted" style="font-size:12px;margin:10px 0 6px">Lisäpelaajat</div><div class="formation d">${l.ex.map(p => card(p, p.pos)).join('')}</div>` : ''}
-    </div>
-    <div>
-      <div class="tiles">
-        ${tile('lOwn', 'Omat xG', fmt(l.own), `${l.g} maalia · ${l.a} syöttöä`)}
-        ${tile('lXgp', 'xG % yhdessä', t && pctOf(t.xgf, t.xga) != null ? Math.round(pctOf(t.xgf, t.xga)) + ' %' : '–')}
-        ${tile('lXgf', 'xG puolesta', t ? fmt(t.xgf) : '–', t ? `${t.cf} laukausyritystä · ${t.gf} maalia` : '')}
-        ${tile('lXga', 'xG vastaan', t ? fmt(t.xga) : '–', t ? `${t.ca} laukausyritystä · ${t.ga} maalia` : '')}
-        ${l.five ? tile('l5', 'Koko viisikko', `${fmt(l.five.xgf)} – ${fmt(l.five.xga)}`, `maalit ${l.five.gf}–${l.five.ga}`) : ''}
-        ${tile('lToi', 'Peliaika (hyökk. ka.)', toi(l.toi))}
-      </div>
-      <div class="muted" style="font-size:12px;margin:12px 0 6px">Laukaukset, kun ${l.n}. ketjun hyökkääjät olivat kentällä yhdessä</div>
-      ${t && t.shots.length ? rink(t.shots, hNum, byId) : '<div class="muted">Ei laukauksia ketjun ollessa kentällä yhdessä.</div>'}
-    </div></div>`;
+  const l = lines.find(x => x.n === state.line) || lines[0];
+  return chips + `<div class="lsingle">${lineRink(l, col)}</div>
+    <div class="muted" style="font-size:12px;margin-top:8px">Pelaajan alla hänen omien laukaustensa xG, oikeassa yläkulmassa ketjun pelaajien yhteenlaskettu xG.</div>`;
 }
 
 function leaders(home, away) {
