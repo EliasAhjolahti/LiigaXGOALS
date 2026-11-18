@@ -95,6 +95,10 @@ tr.click{cursor:pointer}
 .lnames{font-size:13px;margin-left:8px;white-space:normal;line-height:1.3}
 .ltable td.left{white-space:normal;min-width:260px}
 .tablewrap{scrollbar-color:#2a323d transparent}
+.ppline{display:flex;flex-wrap:wrap;gap:6px 14px}
+.ppp{display:inline-flex;align-items:center;font-size:12px;line-height:1.25;white-space:nowrap}
+.ppp .av{width:30px;height:30px;margin-right:6px}
+tr.selrow{background:#ffffff0f}
 .cover{margin-top:16px;background:var(--panel2);border-radius:10px;padding:14px 16px;font-size:13px}
 .cover .ctitle{font:600 16px 'Barlow Condensed';letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px}
 .cover p{margin:6px 0 10px;max-width:900px}
@@ -121,15 +125,15 @@ tr.click{cursor:pointer}
 .tile .ts{font-size:11px;color:var(--muted)}
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#ff4d5e;margin-right:6px;vertical-align:middle;animation:pulse 1.4s infinite}
 @keyframes pulse{50%{opacity:.25}}
-footer{position:sticky;bottom:0;background:#0d1117e6;backdrop-filter:blur(4px);border-top:1px solid var(--line)}
+.topline{display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px 16px;font-size:12px;color:var(--muted);padding-bottom:0}
+.topline + #app{padding-top:10px}
 .err{padding:30px;text-align:center}
-footer{font-size:12px;color:var(--muted);text-align:center;padding:10px}
 </style>
 </head>
 <body>
+<div class="wrap topline"><span id="refresh">Ladataan…</span><span title="Live-ottelut päivittyvät 30 s välein, päivän pelit vaihtuvat itsestään">Data: liiga.fi · päivittyy automaattisesti</span></div>
 <div class="wrap" id="app"><div class="panel err muted">Ladataan ottelua…</div></div>
 <div id="tip"></div>
-<footer><span id="refresh"></span><br>Data: liiga.fi · päivittyy automaattisesti: live-ottelut 30 s välein, päivän pelit vaihtuvat itsestään</footer>
 
 <script>
 const API = 'https://www.liiga.fi/api/v2';
@@ -282,6 +286,12 @@ const HELP = {
   lPts: 'Ketjun pelaajien yhteenlasketut maalit + syöttöpisteet.',
   lToi: 'Ketjun hyökkääjien keskimääräinen peliaika.',
   l5: 'Koko viisikko (hyökkääjät + puolustajapari) kentällä yhdessä: xG puolesta–vastaan.',
+  ppN: 'Kuinka monta kertaa joukkue pääsi ylivoimalle vastustajan jäähyjen vuoksi.',
+  ppXg: 'Joukkueen kaikkien ylivoimalla laukaistujen laukausten yhteenlaskettu maaliodottama.',
+  ppPer: 'Ylivoiman tehokkuus: ylivoima-xG jaettuna ylivoimien määrällä.',
+  ppAg: 'Vastustajan alivoimalla laukomat laukaukset, eli vaaralliset vastahyökkäykset joukkueen ylivoiman aikana.',
+  ppCf: 'Ylivoimalaukausyritykset tämän kentällisen ollessa kentällä.',
+  ppXgU: 'Kentällisen ylivoimalaukausten yhteenlaskettu maaliodottama.',
   gk: 'Maalivahtien tilastot laskettuna laukauskartasta. Tyhjään maaliin tehdyt maalit eivät ole mukana.',
   gtoi: 'Maalivahdin peliaika (min:s).',
   gsa: 'Maalivahtia kohti tulleet laukaukset (torjutut + päästetyt).',
@@ -432,16 +442,21 @@ function render(d, stats, shots) {
   };
   const drawLines = () => {
     const side = state.lineTeam, ls = lineData[side];
-    if (state.line !== 'all' && !ls.some(l => l.n === state.line)) state.line = 'all';
-    $('#lines').innerHTML = linesView(ls, side === 'home' ? 'var(--home)' : 'var(--away)', hNum, byId);
+    if (state.line !== 'all' && state.line !== 'pp' && !ls.some(l => l.n === state.line)) state.line = 'all';
+    const T = side === 'home' ? H : A;
+    const ppInfo = {n: T.powerplayInstances, g: T.powerplayGoals};
+    $('#lines').innerHTML = linesView(ls, side === 'home' ? 'var(--home)' : 'var(--away)', hNum, byId, ppInfo);
   };
   drawLines();
   document.querySelectorAll('#ltabs button').forEach(b => b.onclick = () => {
-    state.lineTeam = b.dataset.t; document.querySelectorAll('#ltabs button').forEach(x => x.classList.toggle('on', x === b)); drawLines();
+    state.lineTeam = b.dataset.t; state.ppUnit = null; document.querySelectorAll('#ltabs button').forEach(x => x.classList.toggle('on', x === b)); drawLines();
   });
   $('#lines').onclick = e => {
+    const u = e.target.closest('[data-ppu]');
+    if (u) { const i = +u.dataset.ppu; state.ppUnit = state.ppUnit === i ? null : i; drawLines(); return; }
     const el = e.target.closest('[data-line]'); if (!el) return;
-    state.line = el.dataset.line === 'all' ? 'all' : +el.dataset.line; drawLines();
+    const v = el.dataset.line;
+    state.line = v === 'all' || v === 'pp' ? v : +v; state.ppUnit = null; drawLines();
   };
   $('#ptable').onclick = e => {
     const th = e.target.closest('th'); if (!th) return;
@@ -606,7 +621,53 @@ function buildLines(rosterTeam, agg, shots, teamNum) {
   const rest = own.filter(s => !covered(s));
   const special = rest.filter(s => s.type === 'PowerplayShot' || s.type === 'ShorthandedShot');
   out.cover = {total: xgSum(own), lines: xgSum(own) - xgSum(rest), special: xgSum(special), other: xgSum(rest) - xgSum(special)};
+  out.pp = buildPP(agg, shots, teamNum);
   return out;
+}
+
+// YV-kentälliset: ryhmitellään ylivoimalaukaukset sen mukaan, ketkä joukkueen kenttäpelaajat olivat kentällä
+function buildPP(agg, shots, teamNum) {
+  const P = new Map(agg.map(p => [p.id, p]));
+  const skaters = s => (s.playerStartPositions || []).map(q => q.playerId).filter(id => P.has(id)).sort((a, b) => a - b);
+  const units = new Map();
+  const unit = ids => { const k = ids.join(','); if (!units.has(k)) units.set(k, {ids, f: [], a: []}); return units.get(k); };
+  const f = shots.filter(s => s.shootingTeamId === teamNum && s.type === 'PowerplayShot');
+  const a = shots.filter(s => s.shootingTeamId !== teamNum && s.type === 'ShorthandedShot'); // vastustajan alivoimalaukaukset
+  f.forEach(s => unit(skaters(s)).f.push(s));
+  a.forEach(s => unit(skaters(s)).a.push(s));
+  const ORDER = ['LEFT_WING', 'CENTER', 'RIGHT_WING', 'STRIKER', 'THIRTEENTH_STRIKER', 'LEFT_DEFENSEMAN', 'RIGHT_DEFENSEMAN', 'DEFENSEMAN', 'SEVENTH_DEFENSEMAN'];
+  const list = [...units.values()].filter(u => u.ids.length).map(u => ({
+    players: u.ids.map(id => P.get(id)).sort((x, y) => ORDER.indexOf(x.role) - ORDER.indexOf(y.role)),
+    shots: [...u.f, ...u.a], cf: u.f.length, ca: u.a.length, xgf: xgSum(u.f), xga: xgSum(u.a), gf: goalsIn(u.f), ga: goalsIn(u.a),
+  })).sort((x, y) => y.cf - x.cf || y.xgf - x.xgf);
+  return {units: list, all: [...f, ...a], cf: f.length, xgf: xgSum(f), gf: goalsIn(f), ca: a.length, xga: xgSum(a), ga: goalsIn(a)};
+}
+
+function ppView(pp, col, hNum, byId, info) {
+  const tile = (k, label, val, sub = '') => `<div class="tile" ${tip(k)}><div class="tl">${label}</div><div class="tv num">${val}</div>${sub ? `<div class="ts">${sub}</div>` : ''}</div>`;
+  const tiles = `<div class="tiles" style="margin-bottom:14px">
+    ${tile('ppN', 'Ylivoimat', info.n ?? '–', info.g != null ? `${info.g} ylivoimamaalia` : '')}
+    ${tile('ppXg', 'YV xG', fmt(pp.xgf), `${pp.cf} laukausyritystä · ${pp.gf} maalia`)}
+    ${tile('ppPer', 'xG / ylivoima', info.n ? fmt(pp.xgf / info.n) : '–')}
+    ${tile('ppAg', 'Alivoimalaukaukset vastaan', `${pp.ca}`, `xG ${fmt(pp.xga)} · ${pp.ga} maalia`)}</div>`;
+  if (!pp.units.length) return tiles + '<div class="muted">Joukkue ei laukonut ylivoimalla tässä ottelussa.</div>';
+  const sel = state.ppUnit != null && pp.units[state.ppUnit] ? state.ppUnit : null;
+  const SL = {LEFT_WING: 'VL', CENTER: 'KH', RIGHT_WING: 'OL', LEFT_DEFENSEMAN: 'VP', RIGHT_DEFENSEMAN: 'OP'};
+  const who = p => `<span class="ppp"><img class="av" src="${p.pic || ''}" onerror="this.style.visibility='hidden'" alt=""><span><b style="color:${col}">#${p.jersey}</b> ${p.last}<br><span class="muted">${SL[p.role] || p.pos}</span></span></span>`;
+  const maxX = Math.max(.01, ...pp.units.map(u => u.xgf));
+  const rows = pp.units.map((u, i) => `<tr data-ppu="${i}" class="click ${sel === i ? 'selrow' : ''}">
+    <td class="left"><b class="lno" style="color:${col}">YV${i + 1}</b></td>
+    <td class="left"><div class="ppline">${u.players.map(who).join('')}</div></td>
+    <td class="num">${u.cf}</td>
+    <td><div class="xgcell"><span class="b" style="width:${u.xgf / maxX * 50}px"></span><b class="num">${fmt(u.xgf)}</b></div></td>
+    <td class="num">${u.gf}</td><td class="num">${u.ca ? `${u.ca} (xG ${fmt(u.xga)})` : '–'}</td></tr>`).join('');
+  const shown = sel != null ? pp.units[sel].shots : pp.all;
+  return tiles + `<div class="tablewrap"><table class="ltable" style="--c:${col}"><thead><tr>
+      <th class="left" style="width:1%">Kentällinen</th><th class="left">Pelaajat</th><th ${tip('ppCf')}>Lauk.yr.</th><th ${tip('ppXgU')}>xG</th><th>Maalit</th><th ${tip('ppAg')}>Alivoimalauk. vastaan</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>
+    <div class="muted" style="font-size:12px;margin:8px 0 12px">Kentälliset muodostetaan ylivoimalaukausten hetkellä kentällä olleista pelaajista (eniten laukauksia = YV1). Klikkaa kentällistä suodattaaksesi kartan, uudelleen klikkaus näyttää kaikki.</div>
+    <div class="muted" style="font-size:12px;margin-bottom:6px">${sel != null ? `YV${sel + 1}-kentällisen laukaukset` : 'Kaikki ylivoimalaukaukset'} (ja vastustajan alivoimalaukaukset)</div>
+    ${rink(shown, hNum, byId)}`;
 }
 
 function coverNote(c, col) {
@@ -636,11 +697,13 @@ function splitBar(f, a, col) {
   return `<div class="split"><div style="width:${p}%;background:${col}"></div><div style="width:${100 - p}%;background:#56606c"></div></div><b class="num">${Math.round(p)} %</b>`;
 }
 
-function linesView(lines, col, hNum, byId) {
+function linesView(lines, col, hNum, byId, ppInfo) {
   if (!lines.length) return '<div class="muted">Ketjutietoja ei ole saatavilla tälle ottelulle.</div>';
   const chips = `<div class="lchips">
     <button data-line="all" class="${state.line === 'all' ? 'on' : ''}" style="--c:${col}">Kaikki ketjut</button>
-    ${lines.map(l => `<button data-line="${l.n}" class="${state.line === l.n ? 'on' : ''}" style="--c:${col}">${l.n}. ketju</button>`).join('')}</div>`;
+    ${lines.map(l => `<button data-line="${l.n}" class="${state.line === l.n ? 'on' : ''}" style="--c:${col}">${l.n}. ketju</button>`).join('')}
+    <button data-line="pp" class="${state.line === 'pp' ? 'on' : ''}" style="--c:${col}">YV-kentälliset</button></div>`;
+  if (state.line === 'pp') return chips + ppView(lines.pp, col, hNum, byId, ppInfo);
   const av = p => `<img class="av sm" src="${p.pic || ''}" onerror="this.style.visibility='hidden'" alt="" title="${p.first} ${p.last}">`;
   const names = l => [...l.fw, ...l.df].map(p => p.last).join(' – ');
   const maxOwn = Math.max(.01, ...lines.map(l => l.own));
