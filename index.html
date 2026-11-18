@@ -91,17 +91,13 @@ th.sorted{color:#fff}
 tr.click{cursor:pointer}
 .lno{font:700 22px 'Barlow Condensed';width:26px}
 .tablewrap{scrollbar-color:#2a323d transparent}
-.ppline{display:flex;flex-wrap:wrap;gap:6px 14px}
-.ppp{display:inline-flex;align-items:center;font-size:12px;line-height:1.25;white-space:nowrap}
-.ppp .av{width:30px;height:30px;margin-right:6px}
-tr.selrow{background:#ffffff0f}
-.lsingle{max-width:620px}
+.lsingle{max-width:460px}
 .lrink{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px 12px}
 .lrink .hd{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .lrink .hd .lt{font:700 20px 'Barlow Condensed';letter-spacing:.04em;text-transform:uppercase;color:var(--c)}
 .lrink .hd .tx{text-align:right;font-size:12px;color:var(--muted)}
 .lrink .hd .tx b{font:700 24px 'Barlow Condensed';color:var(--text);margin-left:4px}
-.ice{position:relative;aspect-ratio:1.15;margin-top:8px}
+.ice{position:relative;aspect-ratio:100/115;margin-top:8px}
 .ice svg{position:absolute;inset:0;width:100%;height:100%}
 .rp{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;width:104px;line-height:1.15}
 .rp img,.rp .noimg{width:46px;height:46px;border-radius:50%;object-fit:cover;object-position:top;background:var(--panel);border:2px solid var(--c)}
@@ -444,7 +440,7 @@ function render(d, stats, shots) {
   });
   $('#lines').onclick = e => {
     const u = e.target.closest('[data-ppu]');
-    if (u) { const i = +u.dataset.ppu; state.ppUnit = state.ppUnit === i ? null : i; drawLines(); return; }
+    if (u) { state.ppUnit = +u.dataset.ppu; drawLines(); return; }
     const el = e.target.closest('[data-line]'); if (!el) return;
     const v = el.dataset.line;
     state.line = v === 'pp' ? v : +v; state.ppUnit = null; drawLines();
@@ -634,58 +630,66 @@ function ppView(pp, col, hNum, byId, info) {
     ${tile('ppPer', 'xG / ylivoima', info.n ? fmt(pp.xgf / info.n) : '–')}
     ${tile('ppAg', 'Alivoimalaukaukset vastaan', `${pp.ca}`, `xG ${fmt(pp.xga)} · ${pp.ga} maalia`)}</div>`;
   if (!pp.units.length) return tiles + '<div class="muted">Joukkue ei laukonut ylivoimalla tässä ottelussa.</div>';
-  const sel = state.ppUnit != null && pp.units[state.ppUnit] ? state.ppUnit : null;
-  const SL = {LEFT_WING: 'VL', CENTER: 'KH', RIGHT_WING: 'OL', LEFT_DEFENSEMAN: 'VP', RIGHT_DEFENSEMAN: 'OP'};
-  const who = p => `<span class="ppp"><img class="av" src="${p.pic || ''}" onerror="this.style.visibility='hidden'" alt=""><span><b style="color:${col}">#${p.jersey}</b> ${p.last}<br><span class="muted">${SL[p.role] || p.pos}</span></span></span>`;
-  const maxX = Math.max(.01, ...pp.units.map(u => u.xgf));
-  const rows = pp.units.map((u, i) => `<tr data-ppu="${i}" class="click ${sel === i ? 'selrow' : ''}">
-    <td class="left"><b class="lno" style="color:${col}">YV${i + 1}</b></td>
-    <td class="left"><div class="ppline">${u.players.map(who).join('')}</div></td>
-    <td class="num">${u.cf}</td>
-    <td><div class="xgcell"><span class="b" style="width:${u.xgf / maxX * 50}px"></span><b class="num">${fmt(u.xgf)}</b></div></td>
-    <td class="num">${u.gf}</td><td class="num">${u.ca ? `${u.ca} (xG ${fmt(u.xga)})` : '–'}</td></tr>`).join('');
-  const shown = sel != null ? pp.units[sel].shots : pp.all;
-  return tiles + `<div class="tablewrap"><table class="ltable" style="--c:${col}"><thead><tr>
-      <th class="left" style="width:1%">Kentällinen</th><th class="left">Pelaajat</th><th ${tip('ppCf')}>Lauk.yr.</th><th ${tip('ppXgU')}>xG</th><th>Maalit</th><th ${tip('ppAg')}>Alivoimalauk. vastaan</th></tr></thead>
-      <tbody>${rows}</tbody></table></div>
-    <div class="muted" style="font-size:12px;margin:8px 0 12px">Kentälliset muodostetaan ylivoimalaukausten hetkellä kentällä olleista pelaajista (eniten laukauksia = YV1). Klikkaa kentällistä suodattaaksesi kartan, uudelleen klikkaus näyttää kaikki.</div>
-    <div class="muted" style="font-size:12px;margin-bottom:6px">${sel != null ? `YV${sel + 1}-kentällisen laukaukset` : 'Kaikki ylivoimalaukaukset'} (ja vastustajan alivoimalaukaukset)</div>
-    ${rink(shown, hNum, byId)}`;
+  const sel = pp.units[state.ppUnit] ? state.ppUnit : 0, u = pp.units[sel];
+  const chips = `<div class="lchips">${pp.units.map((_, i) =>
+    `<button data-ppu="${i}" class="${sel === i ? 'on' : ''}" style="--c:${col}">YV${i + 1}</button>`).join('')}</div>`;
+  // Pelaajan oma xG tämän kentällisen ylivoimalaukauksista
+  const own = p => xgSum(u.shots.filter(s => s.shooterId === p.id && s.type === 'PowerplayShot'));
+  return tiles + chips + `<div class="lsingle">${iceCard({
+      title: `YV${sel + 1}`, totalLabel: 'Kentällisen YV-xG', total: u.xgf, col,
+      players: u.players.map(p => ({p, xg: own(p)})),
+      foot: `<span>${u.cf} lauk.yr. · ${u.gf} maalia</span><span ${tip('ppAg')}>Alivoimalauk. vastaan ${u.ca}${u.ca ? ` (xG ${fmt(u.xga)})` : ''}</span>`,
+    })}</div>
+    <div class="muted" style="font-size:12px;margin-top:8px">Kentälliset muodostetaan ylivoimalaukausten hetkellä kentällä olleista pelaajista (eniten laukauksia = YV1). Pelaajan alla hänen omien ylivoimalaukaustensa xG tällä kentällisellä.</div>`;
 }
 
-// Yksinkertaistettu kenttänäkymä: ketjun pelaajat sijoitettuna puolikkaalle kentälle, hyökkäyssuunta oikealle
-const ICE_SVG = `<svg viewBox="0 0 115 100" preserveAspectRatio="none" aria-hidden="true" fill="none" stroke="#ffffff26" stroke-width=".6">
-  <path d="M1 1H85A29 29 0 0 1 114 30V70A29 29 0 0 1 85 99H1Z" fill="#ffffff05"/>
-  <line x1="3" y1="1" x2="3" y2="99" stroke="#ff4d5e55" stroke-width="1.4"/>
-  <line x1="40" y1="1" x2="40" y2="99" stroke="#2aa7e055" stroke-width="1.6"/>
-  <line x1="104" y1="3" x2="104" y2="97" stroke="#ff4d5e44"/>
-  <path d="M104 44A6 6 0 0 1 104 56" fill="#2aa7e014"/>
-  <circle cx="84" cy="27" r="13"/><circle cx="84" cy="73" r="13"/>
-  <circle cx="84" cy="27" r=".9" fill="#ffffff40"/><circle cx="84" cy="73" r=".9" fill="#ffffff40"/>
-  <circle cx="50" cy="27" r=".9" fill="#ffffff40"/><circle cx="50" cy="73" r=".9" fill="#ffffff40"/>
-  <path d="M3 38A12 12 0 0 1 3 62"/></svg>`;
-const ICE_SLOTS = {LEFT_WING: [72, 17], CENTER: [58, 50], RIGHT_WING: [72, 83], LEFT_DEFENSEMAN: [24, 29], RIGHT_DEFENSEMAN: [24, 71]};
-const ICE_FALLBACK = {fw: ['LEFT_WING', 'CENTER', 'RIGHT_WING'], df: ['LEFT_DEFENSEMAN', 'RIGHT_DEFENSEMAN']};
+// Yksinkertaistettu kenttänäkymä: puolikas kenttä pystyssä, hyökkäyssuunta ylös
+const ICE_SVG = `<svg viewBox="0 0 100 115" preserveAspectRatio="none" aria-hidden="true" fill="none" stroke="#ffffff26" stroke-width=".6">
+  <path d="M1 114V30A29 29 0 0 1 30 1H70A29 29 0 0 1 99 30V114Z" fill="#ffffff05"/>
+  <line x1="3" y1="11" x2="97" y2="11" stroke="#ff4d5e44"/>
+  <path d="M44 11A6 6 0 0 0 56 11" fill="#2aa7e014"/>
+  <circle cx="27" cy="31" r="13"/><circle cx="73" cy="31" r="13"/>
+  <circle cx="27" cy="31" r=".9" fill="#ffffff40"/><circle cx="73" cy="31" r=".9" fill="#ffffff40"/>
+  <circle cx="27" cy="65" r=".9" fill="#ffffff40"/><circle cx="73" cy="65" r=".9" fill="#ffffff40"/>
+  <line x1="1" y1="75" x2="99" y2="75" stroke="#2aa7e055" stroke-width="1.6"/>
+  <line x1="1" y1="112" x2="99" y2="112" stroke="#ff4d5e55" stroke-width="1.4"/>
+  <path d="M38 112A12 12 0 0 1 62 112"/></svg>`;
+const ICE_ORDER = ['LEFT_WING', 'CENTER', 'RIGHT_WING', 'STRIKER', 'THIRTEENTH_STRIKER', 'LEFT_DEFENSEMAN', 'DEFENSEMAN', 'SEVENTH_DEFENSEMAN', 'RIGHT_DEFENSEMAN'];
+const ICE_DEF = ['LEFT_DEFENSEMAN', 'RIGHT_DEFENSEMAN', 'DEFENSEMAN', 'SEVENTH_DEFENSEMAN'];
+// Paikat prosentteina (x, y): hyökkääjät ylhäällä, keskushyökkääjä hieman alempana, pakit alhaalla
+const ICE_FW = {1: [[50, 28]], 2: [[30, 28], [70, 28]], 3: [[20, 24], [50, 34], [80, 24]]};
+const ICE_EXTRA = [[50, 54], [24, 54], [76, 54]];
+const ICE_D = {1: [[50, 80]], 2: [[30, 80], [70, 80]], 3: [[20, 78], [50, 86], [80, 78]]};
+
+// players: [{p, xg}]; sijoitus roolin mukaan, joten toimii myös ylivoiman 4H+1P tai 3H+2P -muodostelmille
+function iceCard({title, totalLabel, total, players, foot, col}) {
+  const ord = list => list.sort((a, b) => ICE_ORDER.indexOf(a.p.role) - ICE_ORDER.indexOf(b.p.role));
+  const items = players.filter(x => x.p.role !== 'GOALIE');
+  const fw = ord(items.filter(x => !ICE_DEF.includes(x.p.role)));
+  const df = ord(items.filter(x => ICE_DEF.includes(x.p.role)));
+  const row = fw.length > 3 ? [fw[0], fw[1], fw.at(-1)] : fw, extra = fw.length > 3 ? fw.slice(2, -1) : [];
+  const dRow = df.slice(0, 3), dExtra = df.slice(3);
+  const placed = [
+    ...row.map((x, i) => [x, ICE_FW[row.length][i]]),
+    ...dRow.map((x, i) => [x, ICE_D[dRow.length][i]]),
+    ...[...extra, ...dExtra].map((x, i) => [x, ICE_EXTRA[i]]),
+  ].filter(([, pos]) => pos);
+  const html = placed.map(([{p, xg}, [x, y]]) => `<div class="rp" style="left:${x}%;top:${y}%" title="${p.first} ${p.last}">
+      ${p.pic ? `<img src="${p.pic}" alt="" loading="lazy" onerror="this.outerHTML='<span class=noimg></span>'">` : '<span class="noimg"></span>'}
+      <div class="nm"><span>${p.jersey}</span> ${p.last}</div><div class="xv num">${fmt(xg)}</div></div>`).join('');
+  return `<div class="lrink" style="--c:${col}">
+    <div class="hd"><span class="lt">${title}</span><span class="tx">${totalLabel}<b class="num">${fmt(total)}</b></span></div>
+    <div class="ice">${ICE_SVG}${html}</div>
+    <div class="ft">${foot}</div></div>`;
+}
 
 function lineRink(l, col) {
-  // Sijoitetaan roolin mukaan; tuntemattomat roolit (esim. DEFENSEMAN, STRIKER) vapaisiin paikkoihin
-  const used = new Set();
-  const place = (p, kind) => {
-    let k = ICE_SLOTS[p.role] && !used.has(p.role) ? p.role : null;
-    if (!k) k = [...ICE_FALLBACK[kind], ...ICE_FALLBACK.fw, ...ICE_FALLBACK.df].find(s => !used.has(s));
-    if (!k) return '';
-    used.add(k);
-    const pos = ICE_SLOTS[k], x = pos[0] / 115 * 100;
-    return `<div class="rp" style="left:${x}%;top:${pos[1]}%" title="${p.first} ${p.last}: ${p.att || 0} lauk.yr., ${p.g} M + ${p.a} S">
-      ${p.pic ? `<img src="${p.pic}" alt="" loading="lazy" onerror="this.outerHTML='<span class=noimg></span>'">` : '<span class="noimg"></span>'}
-      <div class="nm"><span>${p.jersey}</span> ${p.last}</div><div class="xv num">${fmt(p.xg)}</div></div>`;
-  };
-  const players = [...l.fw.map(p => place(p, 'fw')), ...l.df.map(p => place(p, 'df')), ...l.ex.map(p => place(p, 'fw'))].join('');
   const t = l.trio;
-  return `<div class="lrink" data-line="${l.n}" style="--c:${col}">
-    <div class="hd"><span class="lt">${l.n}. ketju</span><span class="tx">Ketjun xG<b class="num">${fmt(l.own)}</b></span></div>
-    <div class="ice">${ICE_SVG}${players}</div>
-    <div class="ft"><span>${l.g} M + ${l.a} S</span>${t ? `<span ${tip('lXgp')}>Kentällä yhdessä xG ${fmt(t.xgf)}–${fmt(t.xga)}</span>` : ''}</div></div>`;
+  return iceCard({
+    title: `${l.n}. ketju`, totalLabel: 'Ketjun xG', total: l.own, col,
+    players: l.all.map(p => ({p, xg: p.xg})),
+    foot: `<span>${l.g} M + ${l.a} S</span>${t ? `<span ${tip('lXgp')}>Kentällä yhdessä xG ${fmt(t.xgf)}–${fmt(t.xga)}</span>` : ''}`,
+  });
 }
 
 function linesView(lines, col, hNum, byId, ppInfo) {
