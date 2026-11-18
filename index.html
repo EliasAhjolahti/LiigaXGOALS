@@ -84,6 +84,9 @@ th.sorted{color:#fff}
 .picker button.on{border-color:#fff;background:#232c37}
 .picker button:hover{background:#232c37}
 .livetxt{color:#ff6b78}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#ff4d5e;margin-right:6px;vertical-align:middle;animation:pulse 1.4s infinite}
+@keyframes pulse{50%{opacity:.25}}
+footer{position:sticky;bottom:0;background:#0d1117e6;backdrop-filter:blur(4px);border-top:1px solid var(--line)}
 .err{padding:30px;text-align:center}
 footer{font-size:12px;color:var(--muted);text-align:center;padding:10px}
 </style>
@@ -91,7 +94,7 @@ footer{font-size:12px;color:var(--muted);text-align:center;padding:10px}
 <body>
 <div class="wrap" id="app"><div class="panel err muted">Ladataan ottelua…</div></div>
 <div id="tip"></div>
-<footer>Data: liiga.fi · päivittyy automaattisesti minuutin välein ottelun aikana</footer>
+<footer><span id="refresh"></span><br>Data: liiga.fi · päivittyy automaattisesti: live-ottelut 30 s välein, päivän pelit vaihtuvat itsestään</footer>
 
 <script>
 const API = 'https://www.liiga.fi/api/v2';
@@ -110,7 +113,10 @@ async function j(url) { const r = await fetch(url); if (!r.ok) throw new Error(r
 // Hakee päivän ottelut. Jos tänään ei pelata, näytetään viimeisin pelipäivä.
 async function findDay() {
   const now = new Date(), season = seasonOf(now), today = localDate(now);
-  const games = await j(`${API}/games?tournament=runkosarja&season=${season}`);
+  const lists = await Promise.all(['runkosarja', 'playoffs'].map(t =>
+    j(`${API}/games?tournament=${t}&season=${season}`).catch(() => [])));
+  const games = lists.flat().filter(g => g?.start);
+  if (!games.length) throw new Error('Otteluohjelman haku epäonnistui');
   let day = games.filter(g => localDate(new Date(g.start)) === today);
   let note = '';
   if (!day.length) {
@@ -118,7 +124,7 @@ async function findDay() {
     day = games.filter(g => localDate(new Date(g.start)) === last);
     if (last) note = `Tänään ei ole Liiga-otteluita – näytetään viimeisin pelipäivä (${new Date(last).toLocaleDateString('fi-FI')}).`;
   }
-  return {season, games: day.sort((a, b) => new Date(a.start) - new Date(b.start) || a.id - b.id), note};
+  return {season, date: today, games: day.sort((a, b) => new Date(a.start) - new Date(b.start) || a.id - b.id), note};
 }
 
 function gamePicker(day, selId) {
@@ -133,10 +139,46 @@ function gamePicker(day, selId) {
   }).join('')}</div>`;
 }
 
-let day = null;
+const LIVE_MS = 30000, IDLE_MS = 5 * 60000, DONE_MS = 10 * 60000;
+let day = null, loading = false, lastOk = null, nextAt = null;
+const isLive = g => g.started && !g.ended;
+
+// Seuraava päivitys: live-ottelu → 30 s, alkamassa → aloitushetkeen (max 5 min), kaikki päättyneet → 10 min (päivän vaihdon tarkistus)
+function scheduleNext(detailLive) {
+  clearTimeout(timer);
+  const now = Date.now();
+  let ms = DONE_MS;
+  if (detailLive || day?.games.some(isLive)) ms = LIVE_MS;
+  else {
+    const upcoming = (day?.games || []).filter(g => !g.started).map(g => new Date(g.start) - now);
+    if (upcoming.length) ms = Math.min(IDLE_MS, Math.max(LIVE_MS, Math.min(...upcoming) + 5000));
+  }
+  // Herätään viimeistään keskiyön jälkeen, jotta päivä vaihtuu
+  const midnight = new Date(); midnight.setHours(24, 0, 30, 0);
+  ms = Math.min(ms, midnight - now);
+  nextAt = now + ms;
+  timer = setTimeout(load, ms);
+}
+
+function updateStatus(err) {
+  const el = $('#refresh'); if (!el) return;
+  const live = day?.games.some(isLive);
+  const t = lastOk ? lastOk.toLocaleTimeString('fi-FI') : '–';
+  const secs = nextAt ? Math.max(0, Math.round((nextAt - Date.now()) / 1000)) : null;
+  el.innerHTML = `${live ? '<span class="dot"></span>LIVE · ' : ''}Päivitetty ${t}` +
+    (secs != null ? ` · seuraava ${secs >= 90 ? Math.round(secs / 60) + ' min' : secs + ' s'}` : '') +
+    (err ? ` · <span style="color:#ff6b78">päivitys epäonnistui, yritetään uudelleen</span>` : '');
+}
+setInterval(() => updateStatus(), 1000);
+
 async function load() {
+  if (loading) return;
+  loading = true;
   try {
-    if (!day || day.games.some(g => g.started && !g.ended) || !state.gameId) day = await findDay();
+    const today = localDate(new Date());
+    const pinned = new URLSearchParams(location.search).get('game');
+    if (day && day.date !== today && !pinned) state.gameId = null; // uusi päivä → päivän pelit
+    day = await findDay();
     const p = new URLSearchParams(location.search);
     let season = day.season, id = state.gameId;
     if (!id && p.get('game')) { id = +p.get('game'); season = +(p.get('season') || season); }
@@ -152,19 +194,31 @@ async function load() {
       j(`${API}/shotmap/${season}/${id}`).catch(() => []),
     ]);
     if (state.gameId !== id) return; // käyttäjä vaihtoi ottelua latauksen aikana
+    const y = scrollY;
     render(detail, stats, shots || []);
     $('#app').insertAdjacentHTML('afterbegin', `<div class="panel">${gamePicker(day, id)}</div>`);
+    scrollTo(0, y); // pidetään lukukohta päivityksessä
     document.querySelectorAll('.picker button').forEach(b => b.onclick = () => {
       state.gameId = +b.dataset.g; state.tab = 'home';
       document.querySelectorAll('.picker button').forEach(x => x.classList.toggle('on', x === b));
-      load();
+      loading = false; load();
     });
-    clearTimeout(timer);
-    if (day.games.some(g => g.started && !g.ended) || (detail.game.started && !detail.game.ended)) timer = setTimeout(load, 60000);
+    lastOk = new Date();
+    scheduleNext(isLive(detail.game));
+    updateStatus();
   } catch (e) {
-    $('#app').innerHTML = `<div class="panel err">Datan lataus epäonnistui: ${e.message}</div>`;
+    if (!lastOk) $('#app').innerHTML = `<div class="panel err">Datan lataus epäonnistui: ${e.message}</div>`;
+    clearTimeout(timer); nextAt = Date.now() + LIVE_MS; timer = setTimeout(load, LIVE_MS);
+    updateStatus(true);
+  } finally {
+    loading = false;
   }
 }
+
+// Kun välilehti palaa näkyviin, päivitetään heti (selain hidastaa ajastimia taustalla)
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && lastOk && Date.now() - lastOk > 15000) load();
+});
 
 // Tilastojen selitykset (näkyvät hoveroidessa)
 const HELP = {
@@ -377,7 +431,7 @@ function xgTimeline(shots, hNum, aNum, g) {
   const W = 520, Hh = 210, pad = 30;
   const end = Math.max(3600, g.gameTime || 0, ...shots.map(s => s.gameTime));
   const sorted = [...shots].sort((a, b) => a.gameTime - b.gameTime);
-  const series = n => { let c = 0; const pts = [[0, 0]]; for (const s of sorted) if (s.shootingTeamId === n) { pts.push([s.gameTime, c]); c += s.xg || 0; pts.push([s.gameTime, c]); } pts.push([g.ended ? end : (g.gameTime || end), c]); return pts; };
+  const series = n => { let c = 0; const pts = [[0, 0]]; for (const s of sorted) if (s.shootingTeamId === n) { pts.push([s.gameTime, c]); c += s.xg || 0; pts.push([s.gameTime, c]); } pts.push([g.ended ? end : Math.max(g.gameTime || end, pts.at(-1)[0]), c]); return pts; };
   const h = series(hNum), a = series(aNum);
   const max = Math.max(1, h.at(-1)[1], a.at(-1)[1]) * 1.1;
   const X = t => pad + t / end * (W - pad - 10), Y = v => Hh - pad + 8 - v / max * (Hh - pad - 10);
