@@ -95,6 +95,12 @@ tr.click{cursor:pointer}
 .lnames{font-size:13px;margin-left:8px;white-space:normal;line-height:1.3}
 .ltable td.left{white-space:normal;min-width:260px}
 .tablewrap{scrollbar-color:#2a323d transparent}
+.cover{margin-top:16px;background:var(--panel2);border-radius:10px;padding:14px 16px;font-size:13px}
+.cover .ctitle{font:600 16px 'Barlow Condensed';letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px}
+.cover p{margin:6px 0 10px;max-width:900px}
+.cbar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--line)}
+.clegend{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:8px;font-size:12px}
+.clegend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:middle}
 .split{display:inline-flex;width:60px;height:6px;border-radius:3px;overflow:hidden}
 .linegrid{display:grid;grid-template-columns:1.1fr 1fr;gap:18px}
 @media (max-width:860px){.linegrid{grid-template-columns:1fr}}
@@ -593,7 +599,34 @@ function buildLines(rosterTeam, agg, shots, teamNum) {
       five: df.length === 2 && fw.length === 3 ? together([...fw, ...df].map(p => p.id)) : null,
     });
   }
+  // Kuinka suuri osa joukkueen xG:stä syntyi jonkin kokoonpanon kolmikon ollessa kentällä, ja mistä loput tulivat
+  const own = shots.filter(s => s.shootingTeamId === teamNum);
+  const trios = out.filter(l => l.fw.length === 3).map(l => l.fw.map(p => p.id));
+  const covered = s => trios.some(ids => ids.every(id => s.playerStartPositions?.some(q => q.playerId === id)));
+  const rest = own.filter(s => !covered(s));
+  const special = rest.filter(s => s.type === 'PowerplayShot' || s.type === 'ShorthandedShot');
+  out.cover = {total: xgSum(own), lines: xgSum(own) - xgSum(rest), special: xgSum(special), other: xgSum(rest) - xgSum(special)};
   return out;
+}
+
+function coverNote(c, col) {
+  if (!c || !c.total) return '';
+  const pct = v => Math.round(v / c.total * 100);
+  const seg = (v, bg) => v > 0 ? `<div style="width:${v / c.total * 100}%;background:${bg}"></div>` : '';
+  return `<div class="cover">
+    <div class="ctitle">Miksi ketjujen luvut eivät summaudu joukkueen xG:hen?</div>
+    <p>Ketjut tulevat Liigan ilmoittamasta ottelun kokoonpanosta. Luvut <b>puolesta</b> ja <b>vastaan</b> lasketaan vain siltä ajalta,
+    kun kokoonpanon kolme hyökkääjää olivat kentällä samaan aikaan. Ylivoima- ja alivoimakentälliset kootaan yleensä eri ketjujen pelaajista,
+    ja valmentaja voi myös vaihtaa pelaajia ketjusta toiseen kesken ottelun. Näiden kokoonpanojen laukaukset eivät kuulu millekään ketjulle.</p>
+    <div class="cbar">${seg(c.lines, col)}${seg(c.special, '#8b97a5')}${seg(c.other, '#3a434e')}</div>
+    <div class="clegend">
+      <span><i style="background:${col}"></i>Kokoonpanon ketjut yhdessä: <b class="num">${fmt(c.lines)}</b> (${pct(c.lines)} %)</span>
+      <span><i style="background:#8b97a5"></i>Yli- ja alivoimalla muilla kokoonpanoilla: <b class="num">${fmt(c.special)}</b> (${pct(c.special)} %)</span>
+      <span><i style="background:#3a434e"></i>Tasakentällisin muilla yhdistelmillä: <b class="num">${fmt(c.other)}</b> (${pct(c.other)} %)</span>
+      <span>Joukkueen xG yhteensä: <b class="num">${fmt(c.total)}</b> <span class="muted">(laukauskartasta, voi poiketa virallisesta pyöristyksen vuoksi)</span></span>
+    </div>
+    <p class="muted"><b>Omat xG</b> taas on pelaajien omien laukausten summa riippumatta siitä, kenen kanssa he pelasivat, joten ketjujen omat xG:t summautuvat lähes koko joukkueen xG:hen.</p>
+  </div>`;
 }
 
 const pctOf = (f, a) => f + a > 0 ? f / (f + a) * 100 : null;
@@ -625,7 +658,8 @@ function linesView(lines, col, hNum, byId) {
         <td class="num">${t ? `${t.cf}–${t.ca}` : '–'}</td><td class="num">${t ? `${t.gf}–${t.ga}` : '–'}</td>
         <td class="num">${l.g} + ${l.a}</td><td class="num">${toi(l.toi)}</td></tr>`; }).join('')}
       </tbody></table></div>
-      <div class="muted" style="font-size:12px;margin-top:8px">Klikkaa ketjua nähdäksesi pelaajat ja ketjun laukauskartan. ”Puolesta/vastaan” = ketjun hyökkääjät kentällä yhdessä.</div>`;
+      <div class="muted" style="font-size:12px;margin-top:8px">Klikkaa ketjua nähdäksesi pelaajat ja ketjun laukauskartan. ”Puolesta/vastaan” = ketjun hyökkääjät kentällä yhdessä.</div>
+      ${coverNote(lines.cover, col)}`;
   }
 
   const l = lines.find(x => x.n === state.line), t = l.trio;
