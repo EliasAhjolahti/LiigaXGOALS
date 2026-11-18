@@ -643,23 +643,23 @@ function ppView(pp, col, hNum, byId, info) {
     <div class="muted" style="font-size:12px;margin-top:8px">Kentälliset muodostetaan ylivoimalaukausten hetkellä kentällä olleista pelaajista (eniten laukauksia = YV1). Pelaajan alla hänen omien ylivoimalaukaustensa xG tällä kentällisellä.</div>`;
 }
 
-// Yksinkertaistettu kenttänäkymä: puolikas kenttä pystyssä, hyökkäyssuunta ylös
+// Yksinkertaistettu kenttänäkymä: oma puolikas pystyssä, keskiviiva ylhäällä ja oma maali alhaalla (kuten kokoonpanokuvissa)
 const ICE_SVG = `<svg viewBox="0 0 100 115" preserveAspectRatio="none" aria-hidden="true" fill="none" stroke="#ffffff26" stroke-width=".6">
-  <path d="M1 114V30A29 29 0 0 1 30 1H70A29 29 0 0 1 99 30V114Z" fill="#ffffff05"/>
-  <line x1="3" y1="11" x2="97" y2="11" stroke="#ff4d5e44"/>
-  <path d="M44 11A6 6 0 0 0 56 11" fill="#2aa7e014"/>
-  <circle cx="27" cy="31" r="13"/><circle cx="73" cy="31" r="13"/>
-  <circle cx="27" cy="31" r=".9" fill="#ffffff40"/><circle cx="73" cy="31" r=".9" fill="#ffffff40"/>
-  <circle cx="27" cy="65" r=".9" fill="#ffffff40"/><circle cx="73" cy="65" r=".9" fill="#ffffff40"/>
-  <line x1="1" y1="75" x2="99" y2="75" stroke="#2aa7e055" stroke-width="1.6"/>
-  <line x1="1" y1="112" x2="99" y2="112" stroke="#ff4d5e55" stroke-width="1.4"/>
-  <path d="M38 112A12 12 0 0 1 62 112"/></svg>`;
+  <path d="M1 1V85A29 29 0 0 0 30 114H70A29 29 0 0 0 99 85V1Z" fill="#ffffff05"/>
+  <line x1="1" y1="3" x2="99" y2="3" stroke="#ff4d5e55" stroke-width="1.4"/>
+  <path d="M38 3A12 12 0 0 0 62 3"/>
+  <line x1="1" y1="40" x2="99" y2="40" stroke="#2aa7e055" stroke-width="1.6"/>
+  <circle cx="27" cy="50" r=".9" fill="#ffffff40"/><circle cx="73" cy="50" r=".9" fill="#ffffff40"/>
+  <circle cx="27" cy="84" r="13"/><circle cx="73" cy="84" r="13"/>
+  <circle cx="27" cy="84" r=".9" fill="#ffffff40"/><circle cx="73" cy="84" r=".9" fill="#ffffff40"/>
+  <line x1="3" y1="104" x2="97" y2="104" stroke="#ff4d5e44"/>
+  <path d="M44 104A6 6 0 0 1 56 104" fill="#2aa7e014"/></svg>`;
 const ICE_ORDER = ['LEFT_WING', 'CENTER', 'RIGHT_WING', 'STRIKER', 'THIRTEENTH_STRIKER', 'LEFT_DEFENSEMAN', 'DEFENSEMAN', 'SEVENTH_DEFENSEMAN', 'RIGHT_DEFENSEMAN'];
 const ICE_DEF = ['LEFT_DEFENSEMAN', 'RIGHT_DEFENSEMAN', 'DEFENSEMAN', 'SEVENTH_DEFENSEMAN'];
-// Paikat prosentteina (x, y): rivit samalla tasolla keskellä kuvaa, hyökkääjät ylempänä ja pakit alempana
-const ICE_FW = {1: [[50, 40]], 2: [[30, 40], [70, 40]], 3: [[20, 40], [50, 40], [80, 40]]};
-const ICE_EXTRA = [[50, 60], [24, 60], [76, 60]];
-const ICE_D = {1: [[50, 79]], 2: [[30, 79], [70, 79]], 3: [[20, 79], [50, 79], [80, 79]]};
+// Paikat prosentteina (x, y): hyökkääjät rivissä keskialueella, pakit rivissä siniviivan takana
+const ICE_ROW = n => ({1: [50], 2: [30, 70], 3: [20, 50, 80]})[n] || [];
+const ICE_FW_Y = 20, ICE_D_Y = 57;
+const ICE_EXTRA = [[50, 80], [24, 80], [76, 80]];
 
 // players: [{p, xg}]; sijoitus roolin mukaan, joten toimii myös ylivoiman 4H+1P tai 3H+2P -muodostelmille
 function iceCard({title, totalLabel, total, players, foot, col}) {
@@ -667,12 +667,13 @@ function iceCard({title, totalLabel, total, players, foot, col}) {
   const items = players.filter(x => x.p.role !== 'GOALIE');
   const fw = ord(items.filter(x => !ICE_DEF.includes(x.p.role)));
   const df = ord(items.filter(x => ICE_DEF.includes(x.p.role)));
-  const row = fw.length > 3 ? [fw[0], fw[1], fw.at(-1)] : fw, extra = fw.length > 3 ? fw.slice(2, -1) : [];
-  const dRow = df.slice(0, 3), dExtra = df.slice(3);
+  // Aina 3 ylös ja 2 alas kuten ketjuissa: ylivoiman neljäs hyökkääjä siirtyy alariviin pakin viereen
+  const top = fw.slice(0, 3), bottom = [...df, ...fw.slice(3)].slice(0, 3);
+  const extra = [...df, ...fw.slice(3)].slice(3);
   const placed = [
-    ...row.map((x, i) => [x, ICE_FW[row.length][i]]),
-    ...dRow.map((x, i) => [x, ICE_D[dRow.length][i]]),
-    ...[...extra, ...dExtra].map((x, i) => [x, ICE_EXTRA[i]]),
+    ...top.map((x, i) => [x, [ICE_ROW(top.length)[i], ICE_FW_Y]]),
+    ...bottom.map((x, i) => [x, [ICE_ROW(bottom.length)[i], ICE_D_Y]]),
+    ...extra.map((x, i) => [x, ICE_EXTRA[i]]),
   ].filter(([, pos]) => pos);
   const html = placed.map(([{p, xg}, [x, y]]) => `<div class="rp" style="left:${x}%;top:${y}%" title="${p.first} ${p.last}">
       ${p.pic ? `<img src="${p.pic}" alt="" loading="lazy" onerror="this.outerHTML='<span class=noimg></span>'">` : '<span class="noimg"></span>'}
