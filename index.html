@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Liiga xG tänään</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d1117; --panel:#161b22; --panel2:#1c232c; --line:#2a323d; --text:#e8edf2; --muted:#8b97a5;
+  --home:#d6293a; --away:#2aa7e0; --goal:#ffd34d;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 Inter,system-ui,sans-serif}
+.wrap{max-width:1180px;margin:0 auto;padding:16px}
+h2{font:600 22px 'Barlow Condensed',sans-serif;letter-spacing:.04em;text-transform:uppercase;margin:0 0 12px;color:#fff}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
+.muted{color:var(--muted)}
+.num{font-variant-numeric:tabular-nums}
+
+/* Scoreboard */
+.score{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;text-align:center}
+.team img{width:84px;height:84px;object-fit:contain}
+.team .nm{font:700 28px 'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.03em}
+.big{font:700 64px/1 'Barlow Condensed',sans-serif}
+.status{display:inline-block;margin-top:6px;padding:3px 10px;border-radius:99px;background:var(--panel2);font-size:12px;color:var(--muted)}
+.status.live{background:#3b0d12;color:#ff6b78}
+.xgrow{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:14px;margin-top:18px}
+.xgval{font:700 40px 'Barlow Condensed',sans-serif}
+.xglbl{font:600 13px 'Barlow Condensed';letter-spacing:.12em;color:var(--muted);text-transform:uppercase}
+.bar{display:flex;height:12px;border-radius:99px;overflow:hidden;background:var(--panel2);margin-top:10px}
+.bar div{height:100%}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:860px){.grid2{grid-template-columns:1fr}.big{font-size:48px}.team img{width:56px;height:56px}.team .nm{font-size:20px}}
+
+/* Team stats compare */
+.cmp{display:grid;grid-template-columns:60px 1fr 60px;align-items:center;gap:8px;margin:9px 0}
+.cmp .l{text-align:left;font-weight:600}.cmp .r{text-align:right;font-weight:600}
+.cmp .mid{text-align:center;font-size:12px;color:var(--muted)}
+.cmp .mini{display:flex;height:6px;border-radius:99px;overflow:hidden;background:var(--panel2);margin-top:4px}
+
+table{width:100%;border-collapse:collapse}
+th,td{padding:7px 8px;text-align:right;white-space:nowrap}
+th{font:600 12px 'Barlow Condensed';letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line);cursor:pointer;user-select:none}
+th:first-child,td:first-child,th.left,td.left{text-align:left}
+tbody tr{border-bottom:1px solid #1f262f}
+tbody tr:hover{background:var(--panel2)}
+th.sorted{color:#fff}
+.tablewrap{overflow-x:auto}
+
+/* Leaders */
+.leaders{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px}
+.card{background:var(--panel2);border-radius:12px;overflow:hidden;border-top:4px solid var(--c);position:relative}
+.card .ph{height:150px;background:linear-gradient(180deg,#2a323d,#1c232c);display:flex;align-items:flex-end;justify-content:center}
+.card .ph img{height:100%;object-fit:cover}
+.card .jn{position:absolute;top:8px;left:10px;font:700 26px 'Barlow Condensed';color:var(--c);opacity:.9}
+.card .bd{padding:10px 12px}
+.card .pn{font:700 18px/1.1 'Barlow Condensed';text-transform:uppercase}
+.card .xg{font:700 30px 'Barlow Condensed';color:var(--c)}
+.card .sub{font-size:12px;color:var(--muted)}
+
+.av{width:34px;height:34px;border-radius:50%;object-fit:cover;object-position:top;background:var(--panel2);vertical-align:middle;margin-right:8px}
+.pl{display:flex;align-items:center}
+.tabs{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.tabs button{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:99px;padding:6px 14px;cursor:pointer;font:600 14px Inter}
+.tabs button.on{background:var(--c);border-color:var(--c);color:#0d1117}
+.xgcell{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+.xgcell span.b{display:inline-block;height:6px;border-radius:3px;background:var(--c)}
+
+/* Shot map */
+.rink{width:100%;height:auto;display:block}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:middle}
+#tip{position:fixed;pointer-events:none;background:#05080cf0;border:1px solid var(--line);padding:8px 11px;border-radius:8px;font:400 13px/1.45 Inter,sans-serif;letter-spacing:0;text-transform:none;color:var(--text);max-width:300px;white-space:normal;display:none;z-index:9;box-shadow:0 6px 20px #0008}
+[data-tip]{cursor:help}
+.hint,th[data-tip]{text-decoration:underline dotted #5b6673;text-underline-offset:3px}
+.picker{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px}
+.picker button{display:grid;grid-template-columns:24px 1fr auto 1fr 24px;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;color:var(--text);cursor:pointer;font:600 14px Inter}
+.picker button span:nth-of-type(1){text-align:right}.picker button span:nth-of-type(2){text-align:left}
+.picker button img{width:24px;height:24px;object-fit:contain}
+.picker button b{font:700 18px 'Barlow Condensed';padding:0 4px}
+.picker button.on{border-color:#fff;background:#232c37}
+.picker button:hover{background:#232c37}
+.livetxt{color:#ff6b78}
+.err{padding:30px;text-align:center}
+footer{font-size:12px;color:var(--muted);text-align:center;padding:10px}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"><div class="panel err muted">Ladataan ottelua…</div></div>
+<div id="tip"></div>
+<footer>Data: liiga.fi · päivittyy automaattisesti minuutin välein ottelun aikana</footer>
+
+<script>
+const API = 'https://www.liiga.fi/api/v2';
+const TEAM_A = 'ässät', TEAM_B = 'pelicans';
+const $ = s => document.querySelector(s);
+const fmt = (n, d = 2) => (n ?? 0).toFixed(d).replace('.', ',');
+const toi = s => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
+const POS = {GOALIE:'MV',CENTER:'KH',LEFT_WING:'VL',RIGHT_WING:'OL',LEFT_DEFENSEMAN:'VP',RIGHT_DEFENSEMAN:'OP',DEFENSEMAN:'P',SEVENTH_DEFENSEMAN:'P',STRIKER:'H',THIRTEENTH_STRIKER:'H'};
+
+let timer, state = {tab: 'home', sort: 'xg', dir: -1};
+
+function seasonOf(d) { return d.getMonth() >= 6 ? d.getFullYear() + 1 : d.getFullYear(); }
+function localDate(d) { return d.toLocaleDateString('sv-SE'); }
+async function j(url) { const r = await fetch(url); if (!r.ok) throw new Error(r.status + ' ' + url); return r.json(); }
+
+// Hakee päivän ottelut. Jos tänään ei pelata, näytetään viimeisin pelipäivä.
+async function findDay() {
+  const now = new Date(), season = seasonOf(now), today = localDate(now);
+  const games = await j(`${API}/games?tournament=runkosarja&season=${season}`);
+  let day = games.filter(g => localDate(new Date(g.start)) === today);
+  let note = '';
+  if (!day.length) {
+    const last = games.filter(g => g.started).map(g => localDate(new Date(g.start))).sort().at(-1);
+    day = games.filter(g => localDate(new Date(g.start)) === last);
+    if (last) note = `Tänään ei ole Liiga-otteluita – näytetään viimeisin pelipäivä (${new Date(last).toLocaleDateString('fi-FI')}).`;
+  }
+  return {season, games: day.sort((a, b) => new Date(a.start) - new Date(b.start) || a.id - b.id), note};
+}
+
+function gamePicker(day, selId) {
+  if (!day.games.length) return '';
+  return `${day.note ? `<div class="muted" style="margin-bottom:10px">${day.note}</div>` : ''}<div class="picker">${day.games.map(g => {
+    const live = g.started && !g.ended;
+    const sc = g.started ? `${g.homeTeam.goals}–${g.awayTeam.goals}` : new Date(g.start).toLocaleTimeString('fi-FI', {hour: '2-digit', minute: '2-digit'});
+    return `<button data-g="${g.id}" class="${g.id === selId ? 'on' : ''}">
+      <img src="${g.homeTeam.logos?.darkBg || ''}" alt=""><span>${g.homeTeam.teamName}</span>
+      <b class="num ${live ? 'livetxt' : ''}">${sc}</b>
+      <span>${g.awayTeam.teamName}</span><img src="${g.awayTeam.logos?.darkBg || ''}" alt=""></button>`;
+  }).join('')}</div>`;
+}
+
+let day = null;
+async function load() {
+  try {
+    if (!day || day.games.some(g => g.started && !g.ended) || !state.gameId) day = await findDay();
+    const p = new URLSearchParams(location.search);
+    let season = day.season, id = state.gameId;
+    if (!id && p.get('game')) { id = +p.get('game'); season = +(p.get('season') || season); }
+    if (!id) {
+      const pref = day.games.find(g => [g.homeTeam.teamId, g.awayTeam.teamId].some(t => t.endsWith(':' + TEAM_A)));
+      id = (pref || day.games[0])?.id;
+    }
+    if (!id) throw new Error('Otteluita ei löytynyt');
+    state.gameId = id;
+    const [detail, stats, shots] = await Promise.all([
+      j(`${API}/games/${season}/${id}`),
+      j(`${API}/games/stats/${season}/${id}`).catch(() => null),
+      j(`${API}/shotmap/${season}/${id}`).catch(() => []),
+    ]);
+    if (state.gameId !== id) return; // käyttäjä vaihtoi ottelua latauksen aikana
+    render(detail, stats, shots || []);
+    $('#app').insertAdjacentHTML('afterbegin', `<div class="panel">${gamePicker(day, id)}</div>`);
+    document.querySelectorAll('.picker button').forEach(b => b.onclick = () => {
+      state.gameId = +b.dataset.g; state.tab = 'home';
+      document.querySelectorAll('.picker button').forEach(x => x.classList.toggle('on', x === b));
+      load();
+    });
+    clearTimeout(timer);
+    if (day.games.some(g => g.started && !g.ended) || (detail.game.started && !detail.game.ended)) timer = setTimeout(load, 60000);
+  } catch (e) {
+    $('#app').innerHTML = `<div class="panel err">Datan lataus epäonnistui: ${e.message}</div>`;
+  }
+}
+
+// Tilastojen selitykset (näkyvät hoveroidessa)
+const HELP = {
+  xg: 'Maaliodottama (expected goals, xG): kuinka monta maalia laukauksista olisi keskimäärin odotettavissa laukauspaikan, laukaustyypin ja pelitilanteen perusteella. Esim. 0,30 xG = vastaavista laukauksista noin 30 % menee maaliin.',
+  goals: 'Tehdyt maalit.',
+  sog: 'Laukaukset maalia kohti: laukaukset, jotka menivät maaliin tai jotka maalivahti torjui.',
+  att: 'Laukausyritykset: kaikki laukaukset, myös ohi menneet ja kenttäpelaajan blokkaamat.',
+  xgps: 'Keskimääräinen maaliodottama per laukausyritys. Kertoo laukausten laadusta: suurempi luku = vaarallisemmilta paikoilta laukottu.',
+  fo: 'Voitetut aloitukset (kiekon voitto aloituksessa).',
+  ctrl: 'Kiekonhallinta: kuinka suuren osan ajasta joukkue hallitsi kiekkoa (kiistanalaiset tilanteet eivät ole mukana).',
+  pp: 'Ylivoimat: kuinka monta kertaa joukkue pääsi pelaamaan ylivoimalla vastustajan jäähyn vuoksi.',
+  ppg: 'Ylivoimalla tehdyt maalit.',
+  pim: 'Jäähyminuutit yhteensä.',
+  dist: 'Joukkueen tai pelaajan yhteensä luistelema matka kilometreinä (seurantadata).',
+  timeline: 'Kumulatiivinen maaliodottama: viiva nousee jokaisen laukauksen xG:n verran. Valkoreunaiset pallot ovat maaleja.',
+  period: 'Maaliodottama erittäin. Suluissa tehdyt maalit.',
+  shotmap: 'Jokainen laukausyritys kaukalossa. Pallon koko kertoo laukauksen xG:n. Maalit on piirretty täydellä värillä ja renkaalla. Vie hiiri pallon päälle nähdäksesi tiedot.',
+  leaders: 'Ottelun suurimmat yksittäiset maaliodottamat molemmista joukkueista.',
+  gk: 'Maalivahtien tilastot laskettuna laukauskartasta. Tyhjään maaliin tehdyt maalit eivät ole mukana.',
+  gtoi: 'Maalivahdin peliaika (min:s).',
+  gsa: 'Maalivahtia kohti tulleet laukaukset (torjutut + päästetyt).',
+  gsv: 'Torjunnat: maalivahdin torjumat laukaukset.',
+  gsvp: 'Torjuntaprosentti: torjunnat / laukaukset maalia kohti.',
+  gga: 'Päästetyt maalit.',
+  gxga: 'Maaliodottama vastaan: maalivahtia kohti tulleiden laukausten yhteenlaskettu xG.',
+  gsax: 'GSAx (goals saved above expected): xG vastaan miinus päästetyt maalit. Positiivinen = maalivahti torjui enemmän kuin laukausten laadun perusteella odotettiin.',
+  name: 'Pelaajan nimi ja pelinumero.',
+  pos: 'Pelipaikka: KH = keskushyökkääjä, VL/OL = vasen/oikea laitahyökkääjä, VP/OP = vasen/oikea puolustaja, P = puolustaja, H = hyökkääjä.',
+  g: 'Maalit.', a: 'Syöttöpisteet (maaliin johtaneet syötöt).', pts: 'Pisteet = maalit + syöttöpisteet.',
+  pm: 'Plus/miinus: +1 kun pelaaja on kentällä oman joukkueen tehdessä tasakenttä- tai alivoimamaalin, −1 kun vastustaja tekee sellaisen.',
+  pxg: 'Pelaajan omien laukausten yhteenlaskettu maaliodottama.',
+  patt: 'Laukausyritykset: kaikki pelaajan laukaukset, myös ohi menneet ja blokatut.',
+  psh: 'Laukaukset maalia kohti (Liigan virallinen tilasto).',
+  toi: 'Peliaika (min:s).',
+  xgOn: 'xG kentällä: oman joukkueen maaliodottama silloin, kun pelaaja on ollut kentällä.',
+  xgAg: 'xGA kentällä: vastustajan maaliodottama silloin, kun pelaaja on ollut kentällä. Pienempi on parempi.',
+  cfp: 'Corsi %: osuus kaikista laukausyrityksistä (omat + vastustajan), jotka oma joukkue laukoi pelaajan ollessa kentällä. Yli 50 % = joukkue hallitsi peliä.',
+  fop: 'Aloitukset: voitetut / kaikki aloitukset.',
+  blk: 'Blokit: vastustajan laukaukset, jotka pelaaja pysäytti ennen maalivahtia.',
+  passp: 'Syötöt: onnistuneet / kaikki syötöt.',
+  speed: 'Pelaajan suurin mitattu luistelunopeus ottelussa.',
+  hard: 'Pelaajan kovin mitattu laukaus ottelussa.',
+};
+const tip = k => `data-tip="${(HELP[k] || '').replace(/"/g, '&quot;')}"`;
+
+// Joukkuevärit [pääväri, vaihtoehtoinen]. Vierasjoukkue käyttää vaihtoehtoista, jos väri on liian lähellä kotijoukkuetta.
+const COLORS = {
+  'ässät': ['#d6293a', '#e8e8e8'], 'pelicans': ['#2aa7e0', '#f39200'], 'jyp': ['#d22630', '#e8e8e8'],
+  'sport': ['#e4002b', '#e8e8e8'], 'jukurit': ['#1b75bc', '#e8e8e8'], 'jokerit': ['#e2001a', '#e8e8e8'],
+  'kalpa': ['#f2c200', '#e8e8e8'], 'lukko': ['#1f78c8', '#e30613'], 'k-espoo': ['#f47b20', '#3f7fd6'],
+  'ilves': ['#1ea65a', '#f2c200'], 'tps': ['#e8e8e8', '#8c8c8c'], 'kärpät': ['#f2c200', '#e8e8e8'],
+  'hpk': ['#f58220', '#e8e8e8'], 'hifk': ['#e30613', '#3f7fd6'], 'tappara': ['#f47920', '#3f7fd6'], 'saipa': ['#ffd200', '#e8e8e8'],
+};
+const rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+const cdist = (a, b) => Math.hypot(...rgb(a).map((v, i) => v - rgb(b)[i]));
+function teamColor(id, fb, avoid) {
+  const [c1, c2] = COLORS[id.split(':')[1]] || [fb, fb];
+  if (!avoid || cdist(c1, avoid) > 140) return c1;
+  if (cdist(c2, avoid) > 140) return c2;
+  return cdist(fb, avoid) > 140 ? fb : '#e8e8e8';
+}
+
+function aggregate(periods, roster, shots, teamNum) {
+  const P = new Map();
+  for (const per of periods || []) for (const s of per.periodPlayerStats) {
+    const p = P.get(s.playerId) || {id: s.playerId, jersey: s.jerseyId, g:0,a:0,pts:0,pm:0,sh:0,toi:0,blk:0,fo:0,fow:0,cf:0,ca:0,xg:0,xgOn:0,xgAg:0,pass:0,passOk:0,dist:0};
+    const q = s.period;
+    p.g += q.goals; p.a += q.assists; p.pts += q.points; p.pm += q.plusminus; p.sh += q.shots;
+    p.toi += q.timeofice; p.blk += q.blockedShots; p.fo += q.faceoffsTotal; p.fow += q.faceoffsWon;
+    p.cf += q.corsiFor; p.ca += q.corsiAgainst; p.xg += s.expectedGoalsPlayer || 0;
+    p.xgOn += s.expectedGoalsTeam || 0; p.xgAg += s.expectedGoalsAgainst || 0;
+    p.pass += s.totalPasses || 0; p.passOk += s.successfulPasses || 0; p.dist += s.distance || 0;
+    P.set(s.playerId, p);
+  }
+  // Laukaukset kartasta (kaikki yritykset)
+  for (const s of shots) if (s.shootingTeamId === teamNum && P.has(s.shooterId)) {
+    const p = P.get(s.shooterId); p.att = (p.att || 0) + 1;
+  }
+  const R = new Map(roster.map(r => [r.id, r]));
+  return [...P.values()].map(p => {
+    const r = R.get(p.id) || {};
+    return {...p, first: r.firstName || '', last: r.lastName || '#' + p.jersey, pic: r.pictureUrl, role: r.role, pos: POS[r.role] || ''};
+  }).filter(p => p.role !== 'GOALIE');
+}
+
+function render(d, stats, shots) {
+  const g = d.game, H = g.homeTeam, A = g.awayTeam;
+  const hNum = +H.teamId.split(':')[0], aNum = +A.teamId.split(':')[0];
+  const roster = [...d.homeTeamPlayers, ...d.awayTeamPlayers];
+  const byId = new Map(roster.map(r => [r.id, r]));
+  const extra = new Map([...(stats?.homeTeamGamePlayerStats || []), ...(stats?.awayTeamGamePlayerStats || [])].map(x => [x.playerId, x]));
+  const home = aggregate(stats?.homeTeam, d.homeTeamPlayers, shots, hNum);
+  const away = aggregate(stats?.awayTeam, d.awayTeamPlayers, shots, aNum);
+  for (const p of [...home, ...away]) { const e = extra.get(p.id) || {}; p.speed = e.topSpeed; p.hard = e.hardestShot; }
+
+  const xgH = H.expectedGoals ?? shots.filter(s => s.shootingTeamId === hNum).reduce((t, s) => t + (s.xg || 0), 0);
+  const xgA = A.expectedGoals ?? shots.filter(s => s.shootingTeamId === aNum).reduce((t, s) => t + (s.xg || 0), 0);
+  const tot = xgH + xgA || 1;
+
+  let status = 'Tulossa ' + new Date(g.start).toLocaleString('fi-FI', {weekday:'short', day:'numeric', month:'numeric', hour:'2-digit', minute:'2-digit'});
+  let live = false;
+  if (g.ended) status = 'Päättynyt' + (g.finishedType?.includes('OVERTIME') ? ' (ja)' : g.finishedType?.includes('WINNING_SHOT') ? ' (vl)' : '');
+  else if (g.started) { live = true; status = `LIVE · ${g.currentPeriod || ''}. erä · ${toi(g.gameTime || 0)}`; }
+
+  document.documentElement.style.setProperty('--home', teamColor(H.teamId, '#d6293a'));
+  document.documentElement.style.setProperty('--away', teamColor(A.teamId, '#2aa7e0', teamColor(H.teamId, '#d6293a')));
+  $('#app').innerHTML = `
+    <div class="panel">
+      <div class="score">
+        <div class="team"><img src="${H.logos?.darkBg || ''}" alt=""><div class="nm">${H.teamName}</div></div>
+        <div><div class="big num">${H.goals} – ${A.goals}</div><div class="status ${live ? 'live' : ''}">${status}</div>
+          <div class="muted" style="font-size:12px;margin-top:6px">${g.iceRink?.name || ''}${g.spectators ? ' · ' + g.spectators + ' katsojaa' : ''}</div></div>
+        <div class="team"><img src="${A.logos?.darkBg || ''}" alt=""><div class="nm">${A.teamName}</div></div>
+      </div>
+      <div class="xgrow">
+        <div class="xgval num" style="color:var(--home);text-align:right">${fmt(xgH)}</div>
+        <div class="xglbl" ${tip('xg')}>Maaliodottama (xG) ⓘ</div>
+        <div class="xgval num" style="color:var(--away)">${fmt(xgA)}</div>
+      </div>
+      <div class="bar"><div style="width:${xgH / tot * 100}%;background:var(--home)"></div><div style="width:${xgA / tot * 100}%;background:var(--away)"></div></div>
+    </div>
+
+    <div class="grid2">
+      <div class="panel"><h2>Joukkueet</h2>${teamCompare(g, stats, shots, hNum, aNum, xgH, xgA)}</div>
+      <div class="panel"><h2><span ${tip('timeline')}>xG ottelun kulussa ⓘ</span></h2>${xgTimeline(shots, hNum, aNum, g)}${periodTable(shots, hNum, aNum, H, A)}</div>
+    </div>
+
+    <div class="panel"><h2><span ${tip('shotmap')}>Laukauskartta ⓘ</span></h2>${rink(shots, hNum, byId)}
+      <div class="legend"><span><i style="background:var(--home)"></i>${H.teamName}</span><span><i style="background:var(--away)"></i>${A.teamName}</span>
+      <span><i style="background:#8b97a5;border:2px solid #0d1117;box-shadow:0 0 0 2px #8b97a5"></i>Maali (täysi väri + rengas)</span><span>Pallon koko = xG · ${H.teamName} hyökkää oikealle</span></div></div>
+
+    <div class="panel"><h2><span ${tip('leaders')}>Suurimmat maaliodottamat ⓘ</span></h2><div class="leaders">${leaders(home, away)}</div></div>
+
+    <div class="panel"><h2><span ${tip('gk')}>Maalivahdit ⓘ</span></h2>${goalies(d, stats, shots, hNum, aNum, byId)}</div>
+
+    <div class="panel">
+      <h2>Pelaajatilastot</h2>
+      <div class="tabs">
+        <button data-t="home" style="--c:var(--home)" class="${state.tab === 'home' ? 'on' : ''}">${H.teamName}</button>
+        <button data-t="away" style="--c:var(--away)" class="${state.tab === 'away' ? 'on' : ''}">${A.teamName}</button>
+      </div>
+      <div class="tablewrap" id="ptable"></div>
+    </div>`;
+
+  const drawTable = () => $('#ptable').innerHTML = playerTable(state.tab === 'home' ? home : away, state.tab === 'home' ? 'var(--home)' : 'var(--away)');
+  drawTable();
+  document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
+    state.tab = b.dataset.t; document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x === b)); drawTable();
+  });
+  $('#ptable').onclick = e => {
+    const th = e.target.closest('th'); if (!th) return;
+    const k = th.dataset.k; state.dir = state.sort === k ? -state.dir : -1; state.sort = k; drawTable();
+  };
+}
+
+// Tooltipit: yksi kuuntelija koko sivulle, toimii myös uudelleen piirretyille elementeille
+(() => {
+  const box = $('#tip');
+  const show = (el, x, y) => {
+    box.innerHTML = el.dataset.tip; box.style.display = 'block';
+    const w = box.offsetWidth, h = box.offsetHeight;
+    box.style.left = Math.max(8, Math.min(x + 14, innerWidth - w - 8)) + 'px';
+    box.style.top = (y + 14 + h > innerHeight ? y - h - 10 : y + 14) + 'px';
+  };
+  document.addEventListener('mousemove', e => {
+    const el = e.target.closest?.('[data-tip]');
+    if (el && el.dataset.tip) show(el, e.clientX, e.clientY); else box.style.display = 'none';
+  });
+  document.addEventListener('touchstart', e => {
+    const el = e.target.closest?.('[data-tip]'), t = e.touches[0];
+    if (el && el.dataset.tip) show(el, t.clientX, t.clientY); else box.style.display = 'none';
+  }, {passive: true});
+})();
+
+function cmpRow(label, k, h, a, fh = String, fa = fh) {
+  const t = (h + a) || 1;
+  return `<div class="cmp"><div class="l num">${fh(h)}</div><div><div class="mid"><span ${tip(k)} class="hint">${label}</span></div>
+    <div class="mini"><div style="width:${h / t * 100}%;background:var(--home)"></div><div style="width:${a / t * 100}%;background:var(--away)"></div></div></div>
+    <div class="r num">${fa(a)}</div></div>`;
+}
+
+function teamCompare(g, stats, shots, hNum, aNum, xgH, xgA) {
+  const sum = (arr, k) => (arr || []).reduce((t, x) => t + (x[k] || 0), 0);
+  const sh = n => shots.filter(s => s.shootingTeamId === n);
+  const sog = n => sh(n).filter(s => s.eventType === 'GOAL' || s.eventType === 'GOALIE_BLOCKED').length;
+  const hp = stats?.homeTeam, ap = stats?.awayTeam;
+  const pk = stats?.puckStats || [];
+  const ctrlH = sum(pk, 'homeTeamControlDuration'), ctrlA = sum(pk, 'awayTeamControlDuration');
+  const foH = sum(hp, 'faceOffWins'), foA = sum(ap, 'faceOffWins');
+  const ppH = g.homeTeam.powerplayInstances || 0, ppA = g.awayTeam.powerplayInstances || 0;
+  const xgPerShot = (x, n) => n ? x / n : 0;
+  const pct = v => Math.round(v) + ' %';
+  const ctrlT = ctrlH + ctrlA || 1;
+  return [
+    cmpRow('Maalit', 'goals', g.homeTeam.goals, g.awayTeam.goals),
+    cmpRow('Maaliodottama', 'xg', xgH, xgA, v => fmt(v)),
+    cmpRow('Laukaukset maalia kohti', 'sog', sog(hNum), sog(aNum)),
+    cmpRow('Laukausyritykset', 'att', sh(hNum).length, sh(aNum).length),
+    cmpRow('xG / laukausyritys', 'xgps', xgPerShot(xgH, sh(hNum).length), xgPerShot(xgA, sh(aNum).length), v => fmt(v, 3)),
+    cmpRow('Aloitusvoitot', 'fo', foH, foA),
+    ctrlT > 1 ? cmpRow('Kiekonhallinta', 'ctrl', ctrlH / ctrlT * 100, ctrlA / ctrlT * 100, pct) : '',
+    cmpRow('Ylivoimat', 'pp', ppH, ppA),
+    cmpRow('Ylivoimamaalit', 'ppg', g.homeTeam.powerplayGoals || 0, g.awayTeam.powerplayGoals || 0),
+    cmpRow('Jäähyminuutit', 'pim', sum(hp, 'penaltyMinutes'), sum(ap, 'penaltyMinutes')),
+    cmpRow('Luisteltu matka (km)', 'dist', sum(hp, 'totalDistanceTravelled') / 1000, sum(ap, 'totalDistanceTravelled') / 1000, v => fmt(v, 1)),
+  ].join('');
+}
+
+function xgTimeline(shots, hNum, aNum, g) {
+  const W = 520, Hh = 210, pad = 30;
+  const end = Math.max(3600, g.gameTime || 0, ...shots.map(s => s.gameTime));
+  const sorted = [...shots].sort((a, b) => a.gameTime - b.gameTime);
+  const series = n => { let c = 0; const pts = [[0, 0]]; for (const s of sorted) if (s.shootingTeamId === n) { pts.push([s.gameTime, c]); c += s.xg || 0; pts.push([s.gameTime, c]); } pts.push([g.ended ? end : (g.gameTime || end), c]); return pts; };
+  const h = series(hNum), a = series(aNum);
+  const max = Math.max(1, h.at(-1)[1], a.at(-1)[1]) * 1.1;
+  const X = t => pad + t / end * (W - pad - 10), Y = v => Hh - pad + 8 - v / max * (Hh - pad - 10);
+  const path = pts => 'M' + pts.map(([t, v]) => `${X(t).toFixed(1)},${Y(v).toFixed(1)}`).join('L');
+  const goals = sorted.filter(s => s.eventType === 'GOAL');
+  const cum = (n, t) => sorted.filter(s => s.shootingTeamId === n && s.gameTime <= t).reduce((x, s) => x + (s.xg || 0), 0);
+  let grid = '';
+  for (let p = 1200; p < end; p += 1200) grid += `<line x1="${X(p)}" x2="${X(p)}" y1="10" y2="${Hh - pad + 8}" stroke="#2a323d" stroke-dasharray="3 3"/>`;
+  for (let v = 0; v <= max; v += max > 3 ? 1 : 0.5) grid += `<line x1="${pad}" x2="${W - 10}" y1="${Y(v)}" y2="${Y(v)}" stroke="#1f262f"/><text x="${pad - 6}" y="${Y(v) + 4}" fill="#8b97a5" font-size="10" text-anchor="end">${fmt(v, 1)}</text>`;
+  const labels = [1, 2, 3].map(p => `<text x="${X((p - .5) * 1200)}" y="${Hh - 4}" fill="#8b97a5" font-size="11" text-anchor="middle">${p}. erä</text>`).join('');
+  const gm = goals.map(s => { const n = s.shootingTeamId; return `<circle cx="${X(s.gameTime)}" cy="${Y(cum(n, s.gameTime))}" r="6" fill="${n === hNum ? 'var(--home)' : 'var(--away)'}" stroke="#fff" stroke-width="2.5" data-tip="Maali ${toi(s.gameTime)}"/>`; }).join('');
+  return `<svg viewBox="0 0 ${W} ${Hh}" style="width:100%">${grid}${labels}
+    <path d="${path(h)}" fill="none" stroke="var(--home)" stroke-width="2.5"/><path d="${path(a)}" fill="none" stroke="var(--away)" stroke-width="2.5"/>${gm}</svg>`;
+}
+
+function periodTable(shots, hNum, aNum, H, A) {
+  const periods = [...new Set(shots.map(s => s.period))].sort();
+  const x = (n, p) => shots.filter(s => s.shootingTeamId === n && s.period === p).reduce((t, s) => t + (s.xg || 0), 0);
+  const gl = (n, p) => shots.filter(s => s.shootingTeamId === n && s.period === p && s.eventType === 'GOAL').length;
+  const name = p => p <= 3 ? p + '. erä' : 'Jatkoaika';
+  return `<table style="margin-top:10px"><thead><tr><th class="left" ${tip('period')}>xG (maalit)</th>${periods.map(p => `<th>${name(p)}</th>`).join('')}</tr></thead><tbody>
+    <tr><td style="color:var(--home);font-weight:600">${H.teamName}</td>${periods.map(p => `<td class="num">${fmt(x(hNum, p))} <span class="muted">(${gl(hNum, p)})</span></td>`).join('')}</tr>
+    <tr><td style="color:var(--away);font-weight:600">${A.teamName}</td>${periods.map(p => `<td class="num">${fmt(x(aNum, p))} <span class="muted">(${gl(aNum, p)})</span></td>`).join('')}</tr></tbody></table>`;
+}
+
+function rink(shots, hNum, byId) {
+  const W = 1000, H = 500;
+  const TYPE = {EvenStrengthShot: 'Tasakenttä', PowerplayShot: 'Ylivoima', ShorthandedShot: 'Alivoima'};
+  const RES = {GOAL: 'MAALI', GOALIE_BLOCKED: 'Torjuttu', PLAYER_BLOCKED: 'Blokattu', MISSED: 'Ohi'};
+  const dots = [...shots].sort((a, b) => (a.eventType === 'GOAL') - (b.eventType === 'GOAL')).map(s => {
+    // leftTeam hyökkää oikealle. Normalisoidaan: kotijoukkue aina oikealle.
+    const shooterAttacksRight = s.shootingTeamId === s.leftTeam;
+    const isHome = s.shootingTeamId === hNum;
+    let x = s.shotX, y = s.shotY;
+    if (shooterAttacksRight !== isHome) { x = W - x; y = H - y; }
+    const r = 4 + Math.sqrt(s.xg || 0) * 22;
+    const p = byId.get(s.shooterId);
+    const goal = s.eventType === 'GOAL';
+    const col = isHome ? 'var(--home)' : 'var(--away)';
+    const tip = `<b>${p ? p.firstName + ' ' + p.lastName : 'Tuntematon'}</b><br>${RES[s.eventType] || s.eventType} · ${TYPE[s.type] || ''}<br>xG ${fmt(s.xg, 3)} · ${s.period}. erä ${toi(s.gameTime - (s.period - 1) * 1200)}`;
+    const t = tip.replace(/"/g, '&quot;');
+    return goal
+      ? `<circle cx="${x}" cy="${y}" r="${r + 6}" fill="none" stroke="${col}" stroke-width="3"/><circle cx="${x}" cy="${y}" r="${r}" fill="${col}" stroke="#0d1117" stroke-width="4" data-tip="${t}"/>`
+      : `<circle cx="${x}" cy="${y}" r="${r}" fill="${col}" fill-opacity=".5" data-tip="${t}"/>`;
+  }).join('');
+  const gl = 67, bl = 375; // maaliviiva 4 m, siniviiva 22,5 m (60 m kaukalo)
+  return `<svg class="rink" viewBox="-6 -6 ${W + 12} ${H + 12}">
+    <rect x="0" y="0" width="${W}" height="${H}" rx="140" fill="#eef3f7" stroke="#9aa7b4" stroke-width="4"/>
+    <line x1="${W / 2}" x2="${W / 2}" y1="0" y2="${H}" stroke="#d6293a" stroke-width="6" opacity=".55"/>
+    <line x1="${bl}" x2="${bl}" y1="0" y2="${H}" stroke="#2563eb" stroke-width="7" opacity=".55"/>
+    <line x1="${W - bl}" x2="${W - bl}" y1="0" y2="${H}" stroke="#2563eb" stroke-width="7" opacity=".55"/>
+    <line x1="${gl}" x2="${gl}" y1="12" y2="${H - 12}" stroke="#d6293a" stroke-width="2" opacity=".6"/>
+    <line x1="${W - gl}" x2="${W - gl}" y1="12" y2="${H - 12}" stroke="#d6293a" stroke-width="2" opacity=".6"/>
+    <circle cx="${W / 2}" cy="${H / 2}" r="75" fill="none" stroke="#2563eb" stroke-width="2" opacity=".5"/>
+    ${[[167, 140], [167, 360], [833, 140], [833, 360]].map(([cx, cy]) => `<circle cx="${cx}" cy="${cy}" r="75" fill="none" stroke="#d6293a" stroke-width="2" opacity=".45"/><circle cx="${cx}" cy="${cy}" r="5" fill="#d6293a" opacity=".6"/>`).join('')}
+    <path d="M${gl},220 a30,30 0 0 1 0,60" fill="#bfe3f7" stroke="#d6293a" stroke-width="2" opacity=".8"/>
+    <path d="M${W - gl},220 a30,30 0 0 0 0,60" fill="#bfe3f7" stroke="#d6293a" stroke-width="2" opacity=".8"/>
+    <rect x="${gl - 16}" y="235" width="16" height="30" fill="none" stroke="#555" stroke-width="2"/>
+    <rect x="${W - gl}" y="235" width="16" height="30" fill="none" stroke="#555" stroke-width="2"/>
+    ${dots}</svg>`;
+}
+
+function leaders(home, away) {
+  const all = [...home.map(p => ({...p, c: 'var(--home)'})), ...away.map(p => ({...p, c: 'var(--away)'}))]
+    .filter(p => p.xg > 0).sort((a, b) => b.xg - a.xg).slice(0, 8);
+  return all.map(p => `<div class="card" style="--c:${p.c}">
+    <div class="jn">#${p.jersey}</div>
+    <div class="ph">${p.pic ? `<img src="${p.pic}" alt="${p.first} ${p.last}" loading="lazy" onerror="this.remove()">` : ''}</div>
+    <div class="bd"><div class="sub">${p.first}</div><div class="pn">${p.last}</div>
+    <div class="xg num">${fmt(p.xg)} <span style="font-size:14px;color:var(--muted)">xG</span></div>
+    <div class="sub">${p.g} M · ${p.a} S · ${p.att || 0} laukausyritystä · ${toi(p.toi)}</div></div></div>`).join('');
+}
+
+function goalies(d, stats, shots, hNum, aNum, byId) {
+  const rows = [];
+  for (const [side, num, oppNum, col] of [['homeTeam', hNum, aNum, 'var(--home)'], ['awayTeam', aNum, hNum, 'var(--away)']]) {
+    // Maalivahti per erä = eniten peliaikaa saanut
+    const perGk = {};
+    for (const per of stats?.[side] || []) {
+      const gks = per.goaliePeriodStats || []; if (!gks.length) continue;
+      const main = gks.reduce((a, b) => (b.period.timeofice > a.period.timeofice ? b : a));
+      perGk[per.period] = main.playerId;
+      for (const gk of gks) { const r = rows.find(x => x.id === gk.playerId) || (rows.push({id: gk.playerId, col, toi: 0, sa: 0, ga: 0, xga: 0}), rows.at(-1)); r.toi += gk.period.timeofice; }
+    }
+    const empty = (d.game[side].goalKeeperEvents || []).filter(e => e.emptyNet || !e.playerId);
+    for (const s of shots) {
+      if (s.shootingTeamId !== oppNum || !(s.eventType === 'GOAL' || s.eventType === 'GOALIE_BLOCKED')) continue;
+      if (empty.some(e => s.gameTime >= e.beginTime && s.gameTime <= (e.endTime ?? 1e9))) continue; // tyhjä maali
+      const gid = s.eventType === 'GOALIE_BLOCKED' ? s.blockerId : perGk[s.period];
+      const r = rows.find(x => x.id === gid); if (!r) continue;
+      r.sa++; r.xga += s.xg || 0; if (s.eventType === 'GOAL') r.ga++;
+    }
+  }
+  const list = rows.filter(r => r.toi > 0);
+  if (!list.length) return '<div class="muted">Ei maalivahtidataa.</div>';
+  return `<div class="tablewrap"><table><thead><tr><th class="left">Maalivahti</th><th ${tip('gtoi')}>Peliaika</th><th ${tip('gsa')}>Laukaukset</th><th ${tip('gsv')}>Torjunnat</th><th ${tip('gsvp')}>Torjunta-%</th><th ${tip('gga')}>Päästetyt</th><th ${tip('gxga')}>xG vastaan</th><th ${tip('gsax')}>GSAx</th></tr></thead><tbody>
+    ${list.map(r => { const p = byId.get(r.id) || {}; const gsax = r.xga - r.ga; return `<tr>
+      <td><div class="pl"><img class="av" src="${p.pictureUrl || ''}" onerror="this.style.visibility='hidden'" alt=""><span><b style="color:${r.col}">#${p.jersey ?? ''}</b> ${p.firstName || ''} ${p.lastName || ''}</span></div></td>
+      <td class="num">${toi(r.toi)}</td><td class="num">${r.sa}</td><td class="num">${r.sa - r.ga}</td>
+      <td class="num">${r.sa ? fmt((r.sa - r.ga) / r.sa * 100, 1) + ' %' : '–'}</td><td class="num">${r.ga}</td>
+      <td class="num">${fmt(r.xga)}</td><td class="num" style="color:${gsax >= 0 ? '#5ad17a' : '#ff6b78'}">${gsax >= 0 ? '+' : ''}${fmt(gsax)}</td></tr>`; }).join('')}
+    </tbody></table></div><div class="muted" style="font-size:12px;margin-top:6px">Laskettu laukauskartasta (maalia kohti menneet laukaukset). GSAx = torjutut maalit yli odotetun.</div>`;
+}
+
+function playerTable(list, col) {
+  const cols = [
+    ['name', 'Pelaaja'], ['pos', 'Pelip.'], ['xg', 'xG'], ['g', 'M'], ['a', 'S'], ['pts', 'P'], ['pm', '+/−'],
+    ['att', 'Lauk.yr.'], ['sh', 'Lauk. MK'], ['toi', 'Peliaika'], ['xgOn', 'xG kentällä'], ['xgAg', 'xGA kentällä'],
+    ['cfp', 'Corsi %'], ['fop', 'Aloitukset'], ['blk', 'Blokit'], ['passp', 'Syötöt'], ['dist', 'Matka km'], ['speed', 'Huippunop.'], ['hard', 'Kovin lauk.'],
+  ];
+  const rows = list.map(p => ({...p, name: p.last, cfp: p.cf + p.ca ? p.cf / (p.cf + p.ca) * 100 : -1,
+    fop: p.fo ? p.fow / p.fo * 100 : -1, passp: p.pass ? p.passOk / p.pass * 100 : -1, att: p.att || 0}));
+  rows.sort((a, b) => { const x = a[state.sort], y = b[state.sort]; return (typeof x === 'string' ? x.localeCompare(y, 'fi') : (x ?? -1) - (y ?? -1)) * state.dir; });
+  const maxXg = Math.max(.01, ...list.map(p => p.xg));
+  const HK = {xg: 'pxg', att: 'patt', sh: 'psh'};
+  return `<table style="--c:${col}"><thead><tr>${cols.map(([k, l]) => `<th data-k="${k}" ${tip(HK[k] || k)} class="${state.sort === k ? 'sorted' : ''}">${l}${state.sort === k ? (state.dir < 0 ? ' ▾' : ' ▴') : ''}</th>`).join('')}</tr></thead><tbody>
+  ${rows.map(p => `<tr>
+    <td><div class="pl"><img class="av" src="${p.pic || ''}" loading="lazy" onerror="this.style.visibility='hidden'" alt=""><span><b style="color:${col}">#${p.jersey}</b> ${p.first} ${p.last}</span></div></td>
+    <td>${p.pos}</td>
+    <td><div class="xgcell"><span class="b" style="width:${p.xg / maxXg * 50}px"></span><b class="num">${fmt(p.xg)}</b></div></td>
+    <td class="num">${p.g}</td><td class="num">${p.a}</td><td class="num">${p.pts}</td><td class="num">${p.pm > 0 ? '+' : ''}${p.pm}</td>
+    <td class="num">${p.att}</td><td class="num">${p.sh}</td><td class="num">${toi(p.toi)}</td>
+    <td class="num">${fmt(p.xgOn)}</td><td class="num">${fmt(p.xgAg)}</td>
+    <td class="num">${p.cfp >= 0 ? Math.round(p.cfp) + ' %' : '–'}</td>
+    <td class="num">${p.fo ? `${p.fow}/${p.fo}` : '–'}</td><td class="num">${p.blk}</td>
+    <td class="num">${p.pass ? `${p.passOk}/${p.pass}` : '–'}</td><td class="num">${fmt(p.dist / 1000, 1)}</td>
+    <td class="num">${p.speed ? fmt(p.speed * 3.6, 1) + ' km/h' : '–'}</td><td class="num">${p.hard ? fmt(p.hard * 3.6, 0) + ' km/h' : '–'}</td>
+  </tr>`).join('')}</tbody></table>`;
+}
+
+load();
+</script>
+</body>
+</html>
