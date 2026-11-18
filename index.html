@@ -279,6 +279,7 @@ const HELP = {
   ppAg: 'Vastustajan alivoimalla laukomat laukaukset, eli vaaralliset vastahyökkäykset joukkueen ylivoiman aikana.',
   ppCf: 'Ylivoimalaukausyritykset tämän kentällisen ollessa kentällä.',
   ppXgU: 'Kentällisen ylivoimalaukausten yhteenlaskettu maaliodottama.',
+  ppUnits: 'Liiga ei julkaise ylivoimakentällisiä, joten ne on koottu laukausdatasta: jokaisen ylivoimalaukauksen hetkellä kentällä olleet pelaajat muodostavat kentällisen. YV1 = eniten laukonut kentällinen, ei välttämättä valmentajan ykkönen. Kentällinen, joka ei laukonut, ei näy, eikä peliaikoja ole saatavilla. Pelipaikat ovat tasakentällisten kokoonpanosta.',
   gk: 'Maalivahtien tilastot laskettuna laukauskartasta. Tyhjään maaliin tehdyt maalit eivät ole mukana.',
   gtoi: 'Maalivahdin peliaika (min:s).',
   gsa: 'Maalivahtia kohti tulleet laukaukset (torjutut + päästetyt).',
@@ -697,7 +698,7 @@ function linesView(lines, col, hNum, byId, ppInfo) {
   if (!lines.length) return '<div class="muted">Ketjutietoja ei ole saatavilla tälle ottelulle.</div>';
   const chips = `<div class="lchips">
     ${lines.map(l => `<button data-line="${l.n}" class="${state.line === l.n ? 'on' : ''}" style="--c:${col}">${l.n}. ketju</button>`).join('')}
-    <button data-line="pp" class="${state.line === 'pp' ? 'on' : ''}" style="--c:${col}">YV-kentälliset</button></div>`;
+    <button data-line="pp" class="${state.line === 'pp' ? 'on' : ''}" style="--c:${col}">YV-kentälliset <span ${tip('ppUnits')}>ⓘ</span></button></div>`;
   if (state.line === 'pp') return chips + ppView(lines.pp, col, hNum, byId, ppInfo);
   const l = lines.find(x => x.n === state.line) || lines[0];
   return chips + `<div class="lsingle">${lineRink(l, col)}</div>
