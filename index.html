@@ -656,10 +656,10 @@ const ICE_SVG = `<svg viewBox="0 0 100 115" preserveAspectRatio="none" aria-hidd
   <path d="M38 112A12 12 0 0 1 62 112"/></svg>`;
 const ICE_ORDER = ['LEFT_WING', 'CENTER', 'RIGHT_WING', 'STRIKER', 'THIRTEENTH_STRIKER', 'LEFT_DEFENSEMAN', 'DEFENSEMAN', 'SEVENTH_DEFENSEMAN', 'RIGHT_DEFENSEMAN'];
 const ICE_DEF = ['LEFT_DEFENSEMAN', 'RIGHT_DEFENSEMAN', 'DEFENSEMAN', 'SEVENTH_DEFENSEMAN'];
-// Paikat prosentteina (x, y): hyökkääjät ylhäällä, keskushyökkääjä hieman alempana, pakit alhaalla
-const ICE_FW = {1: [[50, 28]], 2: [[30, 28], [70, 28]], 3: [[20, 24], [50, 34], [80, 24]]};
-const ICE_EXTRA = [[50, 54], [24, 54], [76, 54]];
-const ICE_D = {1: [[50, 80]], 2: [[30, 80], [70, 80]], 3: [[20, 78], [50, 86], [80, 78]]};
+// Paikat prosentteina (x, y): rivit samalla tasolla keskellä kuvaa, hyökkääjät ylempänä ja pakit alempana
+const ICE_FW = {1: [[50, 40]], 2: [[30, 40], [70, 40]], 3: [[20, 40], [50, 40], [80, 40]]};
+const ICE_EXTRA = [[50, 60], [24, 60], [76, 60]];
+const ICE_D = {1: [[50, 79]], 2: [[30, 79], [70, 79]], 3: [[20, 79], [50, 79], [80, 79]]};
 
 // players: [{p, xg}]; sijoitus roolin mukaan, joten toimii myös ylivoiman 4H+1P tai 3H+2P -muodostelmille
 function iceCard({title, totalLabel, total, players, foot, col}) {
